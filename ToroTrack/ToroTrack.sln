@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36623.8
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToroTrack", "ToroTrack.csproj", "{620CE817-BCC9-4B9C-B72E-34D5BA4A120A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ToroTrackTests", "..\ToroTrackTests\ToroTrackTests.csproj", "{35332533-E9D4-40B9-B29C-D6B0EE210251}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{620CE817-BCC9-4B9C-B72E-34D5BA4A120A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{620CE817-BCC9-4B9C-B72E-34D5BA4A120A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{620CE817-BCC9-4B9C-B72E-34D5BA4A120A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{620CE817-BCC9-4B9C-B72E-34D5BA4A120A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{35332533-E9D4-40B9-B29C-D6B0EE210251}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35332533-E9D4-40B9-B29C-D6B0EE210251}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35332533-E9D4-40B9-B29C-D6B0EE210251}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35332533-E9D4-40B9-B29C-D6B0EE210251}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6C4C1555-2F8A-4992-B129-5D12A28949DC}
+	EndGlobalSection
+EndGlobal
