@@ -1,42 +1,40 @@
-# This pipeline triggers on pushes to the 'main' branch
 trigger:
-- main
+  branches:
+    include:
+    - main
 
-# This uses a free Linux build machine
-pool:
-  vmImage: 'ubuntu-latest'
-
-# Variables. 
 variables:
-  # Docker Hub username
-  dockerHubUsername: 'codebymathabo' 
-  
-  # The name of the created image
-  imageRepository: 'torotrack' 
-  
-  # Path to tell the pipeline where to find the Dockerfile
-  dockerfilePath: 'ToroTrack/Dockerfile' 
+- name: dockerHubUsername
+  value: 'codebymathabo'
+- name: imageRepository
+  value: 'torotrack'
+- name: dockerfilePath
+  value: 'ToroTrack/Dockerfile'
 
-# These are the pipeline steps
-steps:
-- task: Docker@2
-  displayName: Build Docker Image
-  inputs:
-    command: 'build'
-    # This tells Docker where the Dockerfile is
-    dockerfile: $(dockerfilePath) 
-    # This "tags" the image with the full Docker Hub name
-    tags: |
-      $(dockerHubUsername)/$(imageRepository):$(Build.BuildId)
-      $(dockerHubUsername)/$(imageRepository):latest
+stages:
+- stage: __default
+  jobs:
+  - job: Job
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: Docker@2
+      displayName: Build Docker Image
+      inputs:
+        command: 'build'
+        containerRegistry: 'DockerHubConnection'
+        repository: '$(dockerHubUsername)/$(imageRepository)'
+        dockerfile: $(dockerfilePath)
+        tags: |
+          $(Build.BuildId)
+          latest
 
-- task: Docker@2
-  displayName: Push Image to Docker Hub
-  inputs:
-    # The name of the Docker Hub connection that is created in Project Settings
-    containerRegistry: 'DockerHubConnection' 
-    command: 'push'
-    # These are the tags to push
-    tags: |
-      $(dockerHubUsername)/$(imageRepository):$(Build.BuildId)
-      $(dockerHubUsername)/$(imageRepository):latest
+    - task: Docker@2
+      displayName: Push Image to Docker Hub
+      inputs:
+        command: 'push'
+        containerRegistry: 'DockerHubConnection'
+        repository: '$(dockerHubUsername)/$(imageRepository)'
+        tags: |
+          $(Build.BuildId)
+          latest
