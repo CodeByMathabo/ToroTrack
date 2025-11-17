@@ -1,0 +1,40 @@
+trigger:
+  branches:
+    include:
+    - main
+
+variables:
+- name: dockerHubUsername
+  value: 'codebymathabo'
+- name: imageRepository
+  value: 'torotrack'
+- name: dockerfilePath
+  value: 'ToroTrack/Dockerfile'
+
+stages:
+- stage: __default
+  jobs:
+  - job: Job
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: Docker@2
+      displayName: Build Docker Image
+      inputs:
+        command: 'build'
+        containerRegistry: 'DockerHubConnection'
+        repository: '$(dockerHubUsername)/$(imageRepository)'
+        dockerfile: $(dockerfilePath)
+        tags: |
+          $(Build.BuildId)
+          latest
+
+    - task: Docker@2
+      displayName: Push Image to Docker Hub
+      inputs:
+        command: 'push'
+        containerRegistry: 'DockerHubConnection'
+        repository: '$(dockerHubUsername)/$(imageRepository)'
+        tags: |
+          $(Build.BuildId)
+          latest
