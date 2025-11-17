@@ -1,0 +1,34 @@
+services:
+  # C# Blazor App
+  torotrack:
+    image: codebymathabo/torotrack
+    build:
+      context: ./ToroTrack
+      dockerfile: Dockerfile  
+    ports:
+    # Expose app on port 8080
+      - "8080:8080" 
+    # Tells the app to wait until the database is ready before starting.
+    depends_on:
+      - postgres-db
+    environment:
+      # Tells the C# app how to find the database
+      - "ConnectionStrings__DefaultConnection=Host=postgres-db;Port=5432;Database=torodb;Username=user;Password=password"
+      
+  # PostgreSQL Database
+  postgres-db:
+    image: postgres:16
+    environment:
+      # Database set up
+      - POSTGRES_DB=torodb
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    ports:
+    # Expose database on port 5432
+      - "5432:5432"
+    volumes:
+      - postgres-data-2:/var/lib/postgresql/data
+      
+volumes:
+  # Creates a 'volume' on computer so the database data is not lost when the container is stopped.
+  postgres-data-2:

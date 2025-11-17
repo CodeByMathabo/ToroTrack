@@ -1,0 +1,15 @@
+# Visual Studio temporary files
+.vs/
+*.user
+*.suo
+
+# Build results
+bin/
+obj/
+
+# Database
+*.mdf
+*.ldf
+
+# Environment settings
+.env
