@@ -1,0 +1,149 @@
+/* TORO TRACK DESIGN SYSTEM */
+:root {
+    --toro-bg: #283618; /* Dark Green */
+    --toro-text: #fefae0; /* Cream */
+    --toro-hover: #6b705c; /* Sage Green */
+    --toro-orange: #f3722c; /* Accent Orange */
+}
+
+/* --- SIDEBAR WRAPPER --- */
+.nav-wrapper {
+    background-color: var(--toro-bg);
+    color: var(--toro-text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    width: 100%;
+}
+
+/* --- HEADER --- */
+.nav-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-left: 8px;
+}
+
+.logo-container img {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+}
+
+.app-title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--toro-text);
+}
+
+/* LINKS */
+.toro-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px; /* Comfortable spacing */
+    margin-bottom: 4px;
+    border-radius: 4px;
+    /* Typography */
+    color: var(--toro-text);
+    font-size: 0.95rem;
+    font-weight: 400;
+    /* Animation */
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+    /* Icons */
+    .toro-nav-link .bi {
+        font-size: 1.2rem;
+        width: 24px; /* Ensures alignment */
+        text-align: center;
+        color: var(--toro-text);
+        transition: color 0.2s ease;
+    }
+
+    /* Hover State */
+    .toro-nav-link:hover {
+        background-color: var(--toro-hover);
+        color: #ffffff;
+    }
+
+        .toro-nav-link:hover .bi {
+            color: #ffffff;
+        }
+
+    /* Active State (Current Page) */
+    .toro-nav-link.active {
+        background-color: var(--toro-hover);
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+/* Section Labels */
+.menu-section-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: rgba(254, 250, 224, 0.5);
+    letter-spacing: 0.05em;
+    margin: 24px 0 8px 12px;
+}
+
+.nav-links-scroll {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+/* --- FOOTER --- */
+.user-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.user-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 0 8px;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--toro-orange);
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.logout-btn {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid rgba(254, 250, 224, 0.5);
+    color: var(--toro-text);
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+    .logout-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: #fff;
+    }

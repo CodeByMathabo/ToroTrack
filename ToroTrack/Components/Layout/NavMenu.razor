@@ -1,92 +1,143 @@
-﻿@implements IDisposable
+﻿@using Microsoft.AspNetCore.Components.Authorization
 
-@inject NavigationManager NavigationManager
+<div class="nav-wrapper">
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">ToroTrack</a>
+    <div class="nav-header">
+        <div class="logo-container">
+            <img src="/appImages/toro-icon.png" alt="Toro Logo" />
+        </div>
+        <span class="app-title">Toro Track</span>
     </div>
-</div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <div class="nav-divider"></div>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+    <div class="nav-links-scroll">
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="menu-section-label">Administration Portal</div>
+                @foreach (var link in AdminLinks)
+                {
+                    <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
+                        <span class="@link.IconClass"></span>
+                        <span class="link-text">@link.Label</span>
+                    </NavLink>
+                }
+            </Authorized>
+        </AuthorizeView>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
+        <AuthorizeView Roles="Auditor">
+            <Authorized>
+                <div class="menu-section-label">Auditing Portal</div>
+                @foreach (var link in AuditorLinks)
+                {
+                    <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
+                        <span class="@link.IconClass"></span>
+                        <span class="link-text">@link.Label</span>
+                    </NavLink>
+                }
+            </Authorized>
+        </AuthorizeView>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="auth">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
-            </NavLink>
+        <AuthorizeView Roles="Client">
+            <Authorized>
+                <div class="menu-section-label">Client Portal</div>
+                @foreach (var link in ClientLinks)
+                {
+                    <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
+                        <span class="@link.IconClass"></span>
+                        <span class="link-text">@link.Label</span>
+                    </NavLink>
+                }
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView>
+            <NotAuthorized>
+                <div class="menu-section-label">Public</div>
+                <NavLink class="toro-nav-link" href="Account/Login">
+                    <span class="bi bi-box-arrow-in-right"></span>
+                    <span class="link-text">Login</span>
+                </NavLink>
+            </NotAuthorized>
+        </AuthorizeView>
+
+    </div>
+
+    <div class="user-footer">
+        <div class="user-card">
+            <img src="/appImages/toro-icon.png" alt="Profile" class="avatar" />
+            <div class="user-details">
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="user-name">@context.User.Identity?.Name</div>
+                        <div class="user-role">@GetUserRole(context.User)</div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="user-name">Guest</div>
+                        <div class="user-role">Please Login</div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </div>
 
         <AuthorizeView>
             <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
+                <form action="Account/Logout" method="post">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="" />
+                    <button type="submit" class="logout-btn">
+                        Sign Out
+                    </button>
+                </form>
             </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-            </NotAuthorized>
         </AuthorizeView>
-    </nav>
+    </div>
+
 </div>
 
 @code {
-    private string? currentUrl;
-
-    protected override void OnInitialized()
+    private class NavItem
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        NavigationManager.LocationChanged += OnLocationChanged;
+        public string Label { get; set; } = "";
+        public string Url { get; set; } = "";
+        public string IconClass { get; set; } = "";
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    /* ADMIN LINKS */
+    private List<NavItem> AdminLinks = new()
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
-    }
+        new NavItem { Label = "Overview",     Url = "admin/overview", IconClass = "bi bi-speedometer2" },
+        new NavItem { Label = "Invite Users", Url = "admin/users",    IconClass = "bi bi-person-plus" },
+        new NavItem { Label = "Projects",     Url = "admin/projects", IconClass = "bi bi-folder2" },
+        new NavItem { Label = "Reports",      Url = "admin/reports",  IconClass = "bi bi-file-earmark-bar-graph" },
+        new NavItem { Label = "Settings",     Url = "admin/settings", IconClass = "bi bi-gear" }
+    };
 
-    public void Dispose()
+    /* CLIENT LINKS */
+    private List<NavItem> ClientLinks = new()
     {
-        NavigationManager.LocationChanged -= OnLocationChanged;
+        new NavItem { Label = "Project Details", Url = "client/project-details", IconClass = "bi bi-info-circle" },
+        new NavItem { Label = "Raise Query",     Url = "client/query",           IconClass = "bi bi-question-circle" },
+        new NavItem { Label = "Agenda",          Url = "client/agenda",          IconClass = "bi bi-calendar-event" },
+        new NavItem { Label = "Settings",        Url = "client/settings",        IconClass = "bi bi-gear" }
+    };
+
+    /* AUDITOR LINKS */
+    private List<NavItem> AuditorLinks = new()
+    {
+        new NavItem { Label = "Compliance",      Url = "auditor/compliance",  IconClass = "bi bi-shield-check" },
+        new NavItem { Label = "Audit Trail",     Url = "auditor/audit-trail", IconClass = "bi bi-clock-history" },
+        new NavItem { Label = "License Config",  Url = "auditor/license",     IconClass = "bi bi-file-text" },
+        new NavItem { Label = "Reporting",       Url = "auditor/exporting",   IconClass = "bi bi-bar-chart-steps" },
+        new NavItem { Label = "Settings",        Url = "auditor/settings",    IconClass = "bi bi-gear" }
+    };
+
+    private string GetUserRole(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Admin")) return "Administrator";
+        if (user.IsInRole("Auditor")) return "Auditor";
+        if (user.IsInRole("Client")) return "Client";
+        return "User";
     }
 }
-
