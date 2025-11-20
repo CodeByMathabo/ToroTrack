@@ -1,29 +1,262 @@
 @page "/admin/overview"
 @using Microsoft.AspNetCore.Authorization
-@* @attribute [Authorize(Roles = "Admin")]*@
+@using ToroTrack.Components.Layout
+@rendermode InteractiveServer
 
-<PageTitle>Admin Overview | Toro Track</PageTitle>
+<PageTitle>Overview | Toro Track</PageTitle>
 
-<div class="page-header">
-    <h1>Overview</h1>
-    <p class="subtitle">Welcome back. Here is what's happening today.</p>
+<div class="page-shell">
+
+    <header class="content-header">
+        <div>
+            <h1 class="page-title">Dashboard Overview</h1>
+            <p class="page-subtitle">Real-time system metrics and pending client requests.</p>
+        </div>
+    </header>
+
+    <div class="stats-container">
+        <div class="stat-card">
+            <span class="stat-title">Total Clients</span>
+            <span class="stat-number">@Stats.TotalClients</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-title">Active Projects</span>
+            <span class="stat-number">@Stats.ActiveProjects</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-title">Delivered Assets</span>
+            <span class="stat-number">@Stats.DeliveredAssets</span>
+        </div>
+    </div>
+
+    <div class="section-wrapper">
+        <h3 class="section-title">Pending Client Queries</h3>
+        <p class="text-muted mb-4">Recent questions submitted by clients requiring your attention.</p>
+
+        <div class="queries-grid">
+            @foreach (var query in PendingQueries)
+            {
+                <div class="query-card">
+                    <div class="query-header">
+                        <span class="client-badge">@query.ClientName</span>
+                        <span class="date-badge">@query.DateSubmitted</span>
+                    </div>
+                    <h4 class="query-subject">@query.Subject</h4>
+                    <p class="query-preview">@query.PreviewText</p>
+                    <div class="query-actions">
+                        <button class="btn-reply-toro" @onclick="() => OpenReplyModal(query)">
+                            <span class="bi bi-reply-fill me-2"></span> Respond
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="actions-row mt-5">
+        <button class="action-btn-card" @onclick="() => ShowModal(ModalType.Licenses)">
+            <span class="bi bi-card-checklist d-block mb-2 fs-3"></span>
+            Expiring Licenses
+        </button>
+
+        <button class="action-btn-card" @onclick="() => ShowModal(ModalType.Meetings)">
+            <span class="bi bi-calendar-week d-block mb-2 fs-3"></span>
+            Scheduled Meetings
+        </button>
+
+        <button class="action-btn-card" @onclick="() => ShowModal(ModalType.Users)">
+            <span class="bi bi-people-fill d-block mb-2 fs-3"></span>
+            Internal Users
+        </button>
+    </div>
+
 </div>
 
-<div class="dashboard-grid">
-    <div class="card">
-        <h3>Total Clients</h3>
-        <p class="stat">12</p>
-    </div>
-    <div class="card">
-        <h3>Active Projects</h3>
-        <p class="stat">8</p>
-    </div>
-    <div class="card">
-        <h3>Pending Invites</h3>
-        <p class="stat">3</p>
-    </div>
-</div>
+<ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
+
+    @if (currentModal == ModalType.ReplyQuery && selectedQuery != null)
+    {
+        <div class="reply-context">
+            <label class="small-label">Client Query:</label>
+            <p class="p-3 bg-light rounded">@selectedQuery.PreviewText</p>
+        </div>
+        <div class="form-group mt-3">
+            <label class="small-label">Your Response:</label>
+            <textarea class="form-control mt-1" rows="5" placeholder="Type your resolution here..."></textarea>
+        </div>
+        <div class="mt-3 text-end">
+            <button class="btn-primary-toro" @onclick="() => isModalVisible = false">
+                <span class="bi bi-send-fill me-2"></span> Send Response
+            </button>
+        </div>
+    }
+
+    else if (currentModal == ModalType.Licenses)
+    {
+        <table class="toro-table">
+            <thead>
+                <tr>
+                    <th style="width: 35%">Client</th>
+                    <th style="width: 35%">License Type</th>
+                    <th style="width: 30%; text-align: center;">Expiry Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Toro Info</strong></td>
+                    <td>Azure AD Premium P1</td>
+                    <td class="text-danger text-center">Oct 30, 2025</td>
+                </tr>
+                <tr>
+                    <td><strong>Logistics Co</strong></td>
+                    <td>SQL Server Enterprise</td>
+                    <td class="text-center">Nov 12, 2025</td>
+                </tr>
+                <tr>
+                    <td><strong>Retail Corp</strong></td>
+                    <td>Microsoft 365 E5</td>
+                    <td class="text-center">Dec 05, 2025</td>
+                </tr>
+            </tbody>
+        </table>
+    }
+
+    else if (currentModal == ModalType.Meetings)
+    {
+        <table class="toro-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%">Date & Time</th>
+                    <th style="width: 20%">Client</th>
+                    <th style="width: 20%">Title</th>
+                    <th style="width: 35%">Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var meeting in UpcomingMeetings)
+                {
+                    <tr>
+                        <td style="white-space: nowrap;">@meeting.Date</td>
+                        <td><span class="client-badge" style="font-size: 0.7rem;">@meeting.ClientName</span></td>
+                        <td><strong>@meeting.Title</strong></td>
+                        <td class="text-muted" style="font-size: 0.9rem;">@meeting.Description</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    else if (currentModal == ModalType.Users)
+    {
+        <table class="toro-table">
+            <thead>
+                <tr>
+                    <th style="width: 40%">User Name</th>
+                    <th style="width: 30%">Role</th>
+                    <th style="width: 30%; text-align: center;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle bg-success" style="width: 8px; height: 8px;"></div>
+                            Admin User
+                        </div>
+                    </td>
+                    <td>Administrator</td>
+                    <td class="text-success text-center">Online</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle bg-warning" style="width: 8px; height: 8px;"></div>
+                            John Doe
+                        </div>
+                    </td>
+                    <td>Auditor</td>
+                    <td class="text-warning text-center">Away</td>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle bg-success" style="width: 8px; height: 8px;"></div>
+                            Sarah Smith
+                        </div>
+                    </td>
+                    <td>Client Lead</td>
+                    <td class="text-success text-center">Online</td>
+                </tr>
+            </tbody>
+        </table>
+    }
+</ToroModal>
 
 @code {
-    // Backend logic for fetching stats
+    // --- DATA MODELS ---
+    public class DashboardStats { public int TotalClients { get; set; } public int ActiveProjects { get; set; } public int DeliveredAssets { get; set; } }
+    public class ClientQuery { public int Id { get; set; } public string ClientName { get; set; } = ""; public string Subject { get; set; } = ""; public string PreviewText { get; set; } = ""; public string DateSubmitted { get; set; } = ""; }
+
+    public class Meeting
+    {
+        public string Date { get; set; } = "";
+        public string ClientName { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+    }
+
+    // --- STATE ---
+    private DashboardStats Stats = new();
+    private List<ClientQuery> PendingQueries = new();
+    private List<Meeting> UpcomingMeetings = new();
+
+    private bool isModalVisible = false;
+    private string modalTitle = "";
+    private ModalType currentModal;
+    private ClientQuery? selectedQuery;
+
+    private enum ModalType { Licenses, Meetings, Users, ReplyQuery }
+
+    // --- LOGIC ---
+    protected override void OnInitialized()
+    {
+        Stats = new DashboardStats { TotalClients = 12, ActiveProjects = 5, DeliveredAssets = 148 };
+
+        PendingQueries = new List<ClientQuery>
+        {
+            new ClientQuery { Id = 1, ClientName = "Logistics Co", Subject = "Azure Access Issue", PreviewText = "We are unable to login to the UAT environment since Monday...", DateSubmitted = "2 hrs ago" },
+            new ClientQuery { Id = 2, ClientName = "Retail Corp", Subject = "Report Discrepancy", PreviewText = "The monthly audit report shows different values than the dashboard...", DateSubmitted = "Yesterday" }
+        };
+
+        // Using specific dates
+        UpcomingMeetings = new List<Meeting>
+        {
+            new Meeting { Date = "Nov 20, 2025 14:00", ClientName = "Logistics Co", Title = "Sprint Review", Description = "Weekly sync on Azure migration progress." },
+            new Meeting { Date = "Nov 21, 2025 09:00", ClientName = "Toro Internal", Title = "Audit Check", Description = "Internal review of compliance module." },
+            new Meeting { Date = "Nov 24, 2025 11:30", ClientName = "Retail Corp", Title = "Project Kickoff", Description = "Stakeholder meeting for asset tracking." }
+        };
+    }
+
+    private void ShowModal(ModalType type)
+    {
+        currentModal = type;
+        selectedQuery = null;
+        isModalVisible = true;
+
+        modalTitle = type switch
+        {
+            ModalType.Licenses => "Expiring Licenses",
+            ModalType.Meetings => "Meetings",
+            ModalType.Users => "Active Internal Users",
+            _ => "Details"
+        };
+    }
+
+    private void OpenReplyModal(ClientQuery query)
+    {
+        currentModal = ModalType.ReplyQuery;
+        selectedQuery = query;
+        modalTitle = $"Replying to {query.ClientName}";
+        isModalVisible = true;
+    }
 }

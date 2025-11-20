@@ -1,0 +1,134 @@
+﻿/* SPECIFIC STYLES for the Admin Overview page*/
+
+/* layout for the top statistics row */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+/* spacing wrapper for the query feed section */
+.section-wrapper {
+    margin-bottom: 3rem;
+}
+
+/* grid layout for query cards with consistent spacing */
+.queries-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    align-items: stretch; /* ensures all cards in a row start at the same height */
+}
+
+/* individual query card styling */
+.query-card {
+    background-color: #e9edc9;
+    border: 1px solid #283618; /* Dark Green Border */
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+    /* forces card to stack vertically so we can push the button to the bottom */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+    .query-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+
+/* header alignment for client name and date */
+.query-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.client-badge {
+    background-color: #fefae0;
+    color: #283618;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid #283618;
+}
+
+.date-badge {
+    font-size: 0.8rem;
+    color: #606c38;
+    font-style: italic;
+}
+
+.query-subject {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--toro-bg);
+    margin-bottom: 0.5rem;
+}
+
+.query-preview {
+    font-size: 0.95rem;
+    color: #555;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+/* push the container to the very bottom of the flex card */
+.query-actions {
+    margin-top: auto;
+}
+
+/* reply button styling specific to this card */
+.btn-reply-toro {
+    width: 100%;
+    background-color: transparent;
+    border: 1px solid var(--toro-hover);
+    color: var(--toro-hover);
+    padding: 0.6rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+    .btn-reply-toro:hover {
+        background-color: var(--toro-hover);
+        color: white;
+    }
+
+/* layout for the large bottom action buttons */
+.actions-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3rem;
+}
+
+.action-btn-card {
+    background-color: var(--toro-bg);
+    color: var(--toro-text);
+    padding: 2rem 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+    .action-btn-card:hover {
+        background-color: var(--toro-hover);
+        transform: translateY(-4px);
+    }

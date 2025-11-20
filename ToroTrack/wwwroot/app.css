@@ -1,46 +1,59 @@
-/* Global Styling */
+/* GLOBAL STYLES */
 
+/* Main Content Styles */
 * {
-    box-sizing: border-box; /* Include padding in width calculations */
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
 html, body {
-    font-family: 'Disek', monospace !important; /* Enforce brand font globally */
-    font-weight: normal !important; /* Ensure body text is not bold by default */
+    font-family: 'Disek', monospace !important;
+    font-weight: normal !important;
     font-size: 16px;
     line-height: 1.5;
-    background-color: #f4f6f8;
+    background-color: #fefae0;
     height: 100%;
     width: 100%;
-    overflow: hidden; /* Prevent double scrollbars on the page */
+    overflow: hidden;
     color: #333;
 }
 
+/* "Blue Links" */
 a {
-    color: inherit; /* Override default blue link color */
+    color: inherit;
     text-decoration: none;
     cursor: pointer;
 }
 
+    a:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+
+/* Headings */
 h1, h2, h3, h4, h5, h6 {
     font-weight: bold;
     margin-bottom: 0.5rem;
 }
 
+/* Table Headers */
 th {
-    font-weight: bold !important; /* Enforce bold table headers */
+    font-weight: bold !important;
     text-align: left;
 }
 
+/* THEME VARIABLES */
 :root {
-    --toro-bg: #283618;
-    --toro-text: #fefae0;
-    --toro-hover: #6b705c;
-    --toro-orange: #f3722c;
+    --toro-bg: #283618; /* Dark Green */
+    --toro-text: #fefae0; /* Cream */
+    --toro-hover: #6b705c; /* Sage Green */
+    --toro-orange: #f3722c; /* Accent Orange */
 }
 
+/* SIDEBAR STYLES */
+
+/* The Container */
 .nav-wrapper {
     background-color: var(--toro-bg);
     color: var(--toro-text);
@@ -53,13 +66,14 @@ th {
     border-right: 1px solid rgba(0,0,0,0.1);
 }
 
+/* Header */
 .nav-header {
     display: flex;
     align-items: center;
     gap: 16px;
     margin-bottom: 32px;
     padding-left: 8px;
-    flex-shrink: 0; /* Prevent header from collapsing on small screens */
+    flex-shrink: 0;
 }
 
 .logo-container img {
@@ -70,11 +84,12 @@ th {
 
 .app-title {
     font-size: 1.25rem;
-    font-weight: bold !important; /* Brand name must be bold */
+    font-weight: bold !important;
     color: var(--toro-text);
     letter-spacing: 0.5px;
 }
 
+/* Divider */
 .nav-divider {
     height: 1px;
     background-color: rgba(255, 255, 255, 0.12);
@@ -83,12 +98,14 @@ th {
     flex-shrink: 0;
 }
 
+/* Scrollable Area */
 .nav-links-scroll {
-    flex-grow: 1; /* Allow this section to fill available space */
+    flex-grow: 1;
     overflow-y: auto;
     padding-right: 5px;
 }
 
+/* Section Labels */
 .menu-section-label {
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -98,6 +115,7 @@ th {
     letter-spacing: 1px;
 }
 
+/* Navigation Links */
 a.toro-nav-link {
     display: flex;
     align-items: center;
@@ -130,8 +148,9 @@ a.toro-nav-link {
         color: inherit;
     }
 
+/* Footer */
 .user-footer {
-    margin-top: auto; /* Push footer to the bottom */
+    margin-top: auto;
     padding-top: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
     flex-shrink: 0;
@@ -188,9 +207,10 @@ a.toro-nav-link {
         border-color: #fff;
     }
 
+/* GRID LAYOUT SYSTEM */
 .toro-layout {
     display: grid;
-    grid-template-columns: 260px 1fr; /* Enforce strict 2-column layout */
+    grid-template-columns: 260px 1fr;
     grid-template-rows: 100vh;
     width: 100vw;
     overflow: hidden;
@@ -200,11 +220,11 @@ a.toro-nav-link {
     background-color: var(--toro-bg);
     overflow-y: auto;
     height: 100%;
-    z-index: 10; /* Ensure sidebar stays above content if overlap occurs */
+    z-index: 10;
 }
 
 .toro-content-area {
-    background-color: #f4f6f8;
+    background-color: #FEFAE0; /* UPDATED: Cream Background for Content Area */
     overflow-y: auto;
     height: 100%;
     position: relative;
@@ -217,7 +237,7 @@ a.toro-nav-link {
 
 @media (max-width: 800px) {
     .toro-layout {
-        grid-template-columns: 1fr; /* Stack content on mobile */
+        grid-template-columns: 1fr;
         grid-template-rows: auto 1fr;
     }
 
@@ -226,11 +246,12 @@ a.toro-nav-link {
     }
 }
 
+/* Error UI */
 #blazor-error-ui {
     background: lightyellow;
     bottom: 0;
     box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
-    display: none; /* Hide error bar by default */
+    display: none;
     left: 0;
     padding: 0.6rem 1.25rem 0.7rem 1.25rem;
     position: fixed;
