@@ -1,0 +1,142 @@
+﻿/* LAYOUT GRID */
+.invite-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+/* CARD CONTAINERS */
+.invite-form-card,
+.invite-list-card {
+    background-color: #ccd5ae;
+    border: 1px solid rgba(40, 54, 24, 0.15);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* HEADERS */
+.form-header {
+    color: var(--toro-bg);
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9edc9;
+}
+
+/* --- FORM ELEMENTS & THEME OVERRIDES --- */
+
+/* Why: Override default Bootstrap Blue focus ring with Toro Green */
+::deep .form-control:focus,
+::deep .form-select:focus {
+    border-color: var(--toro-hover) !important;
+    box-shadow: 0 0 0 0.25rem rgba(107, 112, 92, 0.25) !important; /* Sage green glow */
+    outline: none !important;
+}
+
+/* Why: Remove native appearance in some browsers to ensure custom styling holds */
+::deep .form-select {
+    cursor: pointer;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+/* CLIENT SECTION STYLING */
+.client-fields-group {
+    background-color: #e9edc9;
+    padding: 1.25rem;
+    border-radius: 6px;
+    border: 1px dashed #ccc;
+    margin-bottom: 1.5rem;
+}
+
+.section-divider {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--toro-hover);
+    margin-bottom: 1rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.half-width {
+    flex: 1;
+}
+
+/* TABLE STYLES */
+.role-badge {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 20px; /* Pill shape */
+    font-weight: bold;
+    text-transform: uppercase;
+    display: inline-block;
+    min-width: 80px;
+    text-align: center;
+}
+
+    .role-badge.admin {
+        background-color: #283618;
+        color: #fff;
+    }
+
+    .role-badge.auditor {
+        background-color: #f3722c;
+        color: #fff;
+    }
+
+    .role-badge.client {
+        background-color: #e9edc9;
+        color: #283618;
+        border: 1px solid #283618;
+    }
+
+.status-pending {
+    color: #f3722c;
+    font-style: italic;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ACTION BUTTONS */
+/* Why: Solid red button for clear "Delete/Revoke" action */
+.btn-revoke {
+    background-color: #dc3545; /* Danger Red */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+}
+
+    .btn-revoke:hover {
+        background-color: #a71d2a; /* Darker Red */
+        color: white;
+    }
+
+    .btn-revoke:active {
+        transform: scale(0.98);
+    }
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+    .invite-layout {
+        grid-template-columns: 1fr;
+    }
+}

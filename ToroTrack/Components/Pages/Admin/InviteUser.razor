@@ -1,0 +1,206 @@
+﻿@page "/admin/users"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Data
+@*attribute [Authorize(Roles = "Admin")]*@
+@inject ILogger<InviteUser> Logger
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Invite Users | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header">
+        <div>
+            <h1 class="page-title">Invite Users</h1>
+            <p class="page-subtitle">Send invitations to new Admins, Auditors, or Clients.</p>
+        </div>
+    </header>
+
+    <div class="invite-layout">
+        @* Left Column: Invitation Form *@
+        <section class="invite-form-card">
+            <h3 class="form-header">Send Invitation</h3>
+
+            <EditForm Model="@InputModel" OnValidSubmit="HandleValidSubmit" FormName="inviteUserForm">
+                <DataAnnotationsValidator />
+
+                <div class="form-group">
+                    <label class="small-label">User Role</label>
+                    @* Why: Uses custom CSS to override default blue focus ring with Sage Green *@
+                    <InputSelect @bind-Value="InputModel.Role" class="form-select form-control">
+                        <option value="Admin">Administrator</option>
+                        <option value="Auditor">Auditor</option>
+                        <option value="Client">Client</option>
+                    </InputSelect>
+                </div>
+
+                <div class="form-group">
+                    <label class="small-label">Email Address</label>
+                    <InputText @bind-Value="InputModel.Email" class="form-control" placeholder="user@company.com" />
+                    <ValidationMessage For="@(() => InputModel.Email)" class="text-danger" />
+                </div>
+
+                @if (InputModel.Role == "Client")
+                {
+                    <div class="client-fields-group">
+                        <h4 class="section-divider">Client Details</h4>
+
+                        <div class="form-group">
+                            <label class="small-label">Full Name</label>
+                            <InputText @bind-Value="InputModel.FullName" class="form-control" placeholder="Themba Kobe" />
+                            <ValidationMessage For="@(() => InputModel.FullName)" class="text-danger" />
+                        </div>
+
+                        <div class="form-group">
+                            <label class="small-label">Company Name</label>
+                            <InputText @bind-Value="InputModel.CompanyName" class="form-control" placeholder="Acme Corp" />
+                            <ValidationMessage For="@(() => InputModel.CompanyName)" class="text-danger" />
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group half-width">
+                                <label class="small-label">Contact Number</label>
+                                <InputText @bind-Value="InputModel.ContactNumber" class="form-control" placeholder="+27 82 545 7496" />
+                            </div>
+                            <div class="form-group half-width">
+                                <label class="small-label">Client Job Role</label>
+                                <InputText @bind-Value="InputModel.ClientJobRole" class="form-control" placeholder="e.g. Founder, Project Manager" />
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <div class="form-actions mt-4">
+                    <button type="submit" class="btn-primary-toro w-100">
+                        <span class="bi bi-envelope-plus-fill"></span> Send Invitation
+                    </button>
+                </div>
+
+                @if (IsSuccess)
+                {
+                    <div class="alert alert-success mt-3">
+                        <span class="bi bi-check-circle-fill me-2"></span> Invitation queued successfully.
+                    </div>
+                }
+            </EditForm>
+        </section>
+
+        @* Right Column: Pending Invitations Table *@
+        <section class="invite-list-card">
+            <h3 class="form-header">Pending Invitations</h3>
+
+            <table class="toro-table">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Date Invited</th>
+                        <th>Status</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var invite in PendingInvites)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-bold">@invite.Email</div>
+                                @if (!string.IsNullOrEmpty(invite.CompanyName))
+                                {
+                                    <small class="text-muted">@invite.CompanyName</small>
+                                }
+                            </td>
+                            <td><span class="role-badge @invite.Role.ToLower()">@invite.Role</span></td>
+                            <td>@invite.DateInvited.ToString("MMM dd, yyyy")</td>
+                            <td><span class="status-pending">Pending</span></td>
+                            <td class="text-center">
+                                @* Why: Replaced icon with a solid Red button for clarity *@
+                                <button class="btn-revoke" @onclick="() => RevokeInvite(invite)">
+                                    Revoke
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    </div>
+</div>
+
+@code {
+    private InviteFormModel InputModel { get; set; } = new();
+    private bool IsSuccess { get; set; } = false;
+
+    private List<PendingInvite> PendingInvites = new()
+    {
+        new PendingInvite { Id = 1, Email = "auditor@torotrack.com", Role = "Auditor", DateInvited = DateTime.Now.AddDays(-1) },
+        new PendingInvite { Id = 2, Email = "client@logistics.co", Role = "Client", CompanyName = "Logistics Co", DateInvited = DateTime.Now.AddHours(-4) }
+    };
+
+    private async Task HandleValidSubmit()
+    {
+        IsSuccess = false;
+        try
+        {
+            Logger.LogInformation("Admin initiating invite for {Email} as {Role}", InputModel.Email, InputModel.Role);
+
+            await Task.Delay(300);
+
+            PendingInvites.Insert(0, new PendingInvite
+            {
+                Id = new Random().Next(100, 999),
+                Email = InputModel.Email,
+                Role = InputModel.Role,
+                CompanyName = InputModel.CompanyName,
+                DateInvited = DateTime.Now
+            });
+
+            var previousRole = InputModel.Role;
+            InputModel = new InviteFormModel { Role = previousRole };
+            IsSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to process invitation for {Email}", InputModel.Email);
+        }
+    }
+
+    private async Task RevokeInvite(PendingInvite invite)
+    {
+        try
+        {
+            Logger.LogWarning("Revoking invitation for {Email}", invite.Email);
+            await Task.Delay(200);
+            PendingInvites.Remove(invite);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error revoking invite");
+        }
+    }
+
+    public class InviteFormModel
+    {
+        [Required(ErrorMessage = "Role is required")]
+        public string Role { get; set; } = "Client";
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        public string? FullName { get; set; }
+        public string? CompanyName { get; set; }
+        public string? ContactNumber { get; set; }
+        public string? ClientJobRole { get; set; }
+    }
+
+    public class PendingInvite
+    {
+        public int Id { get; set; }
+        public string Email { get; set; } = "";
+        public string Role { get; set; } = "";
+        public string? CompanyName { get; set; }
+        public DateTime DateInvited { get; set; }
+    }
+}
