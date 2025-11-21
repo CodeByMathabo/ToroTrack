@@ -75,7 +75,7 @@
 
 /* AUTOMATION BAR */
 .automation-bar {
-    /* Why: Matches the table container background */
+    /* Matching Table Container color */
     background-color: #a3b18a;
     padding: 1rem;
     border-radius: 8px;
@@ -114,9 +114,8 @@
     min-height: 0;
 }
 
-/* COLUMN STYLING - MATCHING PROJECTS TABLE */
 .kanban-column {
-    /* Why: Changed from #e9edc9 to #a3b18a to match Project Table Body */
+    /* Matching Table Body color */
     background-color: #a3b18a;
     border-radius: 8px;
     border: 1px solid rgba(40, 54, 24, 0.1);
@@ -129,7 +128,7 @@
 
 .column-header {
     padding: 1rem;
-    /* Why: Matches Project Table Header */
+    /* Matching Table Header color */
     background-color: #283618;
     color: #fefae0;
     font-weight: bold;
@@ -159,8 +158,7 @@
 /* FOOTER */
 .column-footer {
     padding: 0.5rem;
-    /* Why: Match column background */
-    background-color: #a3b18a;
+    background-color: #a3b18a; /* Match column */
     border-top: 1px solid rgba(40, 54, 24, 0.1);
     flex-shrink: 0;
 }
@@ -172,7 +170,7 @@
 
 /* NEW COMPACT FORM */
 .new-task-form {
-    background-color: #e9edc9;
+    background-color: #e9edc9; /* Light Green context for form */
     padding: 0.5rem;
     border-radius: 6px;
     border: 1px solid var(--toro-hover);
@@ -187,6 +185,7 @@
 
 /* CARD STYLING */
 .kanban-card {
+    /* Matching Table Badge color */
     background-color: #e9edc9;
     border: 1px solid rgba(40, 54, 24, 0.1);
     border-radius: 6px;
@@ -204,7 +203,7 @@
 .task-title {
     margin: 0 0 0.4rem 0;
     font-weight: 700;
-    color: #283618; /* Dark Green text */
+    color: #283618;
     font-size: 0.95rem;
 }
 
@@ -288,7 +287,7 @@
     width: 100%;
     background: transparent;
     border: 2px dashed rgba(40, 54, 24, 0.3);
-    color: #283618; /* Dark Green Text */
+    color: #283618;
     padding: 0.5rem;
     border-radius: 6px;
     font-weight: bold;
@@ -302,6 +301,7 @@
 
 /* BUTTONS: FORM ACTIONS */
 .btn-save-task {
+    /* Matching Custom Edit Button Scheme */
     background-color: #283618;
     color: #ccd5ae;
     border: none;
@@ -342,7 +342,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Why: Match table container background */
     background-color: #a3b18a;
     border: 2px dashed #283618;
     border-radius: 8px;

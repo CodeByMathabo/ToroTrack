@@ -1,7 +1,7 @@
 ﻿@page "/team/kanban"
 @using Microsoft.AspNetCore.Authorization
 @using ToroTrack.Components.Layout
-@*attribute [Authorize(Roles = "TeamMember")] *@
+@*attribute [Authorize(Roles = "TeamMember")]*@
 @rendermode InteractiveServer
 
 <PageTitle>Kanban Board | Toro Track</PageTitle>
@@ -92,12 +92,11 @@
                                 <input @bind="NewTaskModel.Title" class="form-control task-input-compact fw-bold" placeholder="Task Title" />
                             </div>
                             <div class="form-group mb-1">
-                                <textarea @bind="NewTaskModel.Description" class="form-control task-input-compact" placeholder="Description (Optional)" style="height: 2.5rem; resize: none;"></textarea>
+                                <textarea @bind="NewTaskModel.Description" class="form-control task-input-compact" placeholder="Desc (Optional)" style="height: 2.5rem; resize: none;"></textarea>
                             </div>
 
                             <div class="row g-1 mb-2 align-items-center">
-                                <span class="input-group-text p-0 px-1" style="font-size: 0.7rem;">Priority</span>
-                                <div class="col-6">                       
+                                <div class="col-6">
                                     <select @bind="NewTaskModel.Priority" class="form-select task-input-compact">
                                         <option value="Low">Low Priority</option>
                                         <option value="Medium">Medium</option>
@@ -106,14 +105,13 @@
                                 </div>
                                 <div class="col-6">
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text p-0 px-1" style="font-size: 0.7rem;">Due Date</span>
+                                        <span class="input-group-text p-0 px-1" style="font-size: 0.7rem;">Due</span>
                                         <input type="date" @bind="NewTaskModel.DueDate" class="form-control task-input-compact" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
                                     </div>
                                 </div>
                             </div>
 
-                            @* Why: Removed w-50 and py-1 to let CSS control size properly *@
-                            <div class="d-flex gap-2">
+                            <div class="d-flex gap-2 pt-1">
                                 <button class="btn-save-task" @onclick="AddTask">Add Task</button>
                                 <button class="btn-cancel-task" @onclick="CancelAddTask">Cancel</button>
                             </div>
@@ -143,7 +141,8 @@
                                 <button class="btn-move-back" @onclick='() => MoveTask(task, "Backlog")'>
                                     <span class="bi bi-arrow-left-short"></span>
                                 </button>
-                                <button class="btn-move" @onclick='() => MoveTask(task, "Done")'>
+                                @* Opens Proof Modal *@
+                                <button class="btn-move" @onclick='() => InitiateCompleteTask(task)'>
                                     Done <span class="bi bi-arrow-right-short"></span>
                                 </button>
                             </div>
@@ -153,26 +152,66 @@
                 <div class="column-footer empty"></div>
             </div>
 
-            @* COLUMN 3: DONE *@
+            @* COLUMN 3: DONE (Verified & Pending) *@
             <div class="kanban-column">
                 <div class="column-header">
                     <span>Done</span>
-                    <span class="count-badge">@Tasks.Count(t => t.Status == "Done")</span>
+                    @* Why: Count both Pending and Verified *@
+                    <span class="count-badge">@Tasks.Count(t => t.Status == "PendingReview" || t.Status == "Verified")</span>
                 </div>
                 <div class="column-body">
-                    @foreach (var task in Tasks.Where(t => t.Status == "Done"))
+                    @foreach (var task in Tasks.Where(t => t.Status == "PendingReview" || t.Status == "Verified"))
                     {
                         <div class="kanban-card done-card">
                             <div class="card-content">
                                 <p class="task-title text-decoration-line-through text-muted">
-                                    <span class="bi bi-check-circle-fill text-success me-2"></span>@task.Title
+                                    @if (task.Status == "Verified")
+                                    {
+                                        <span class="bi bi-check-circle-fill text-success me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="bi bi-hourglass-split text-warning me-2"></span>
+                                    }
+                                    @task.Title
                                 </p>
+
+                                @* STATUS INDICATORS *@
+                                @if (task.Status == "PendingReview")
+                                {
+                                    <div class="mt-2">
+                                        <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
+                                            <span class="bi bi-clock"></span> Pending Admin Review
+                                        </span>
+                                    </div>
+                                }
+                                else if (task.Status == "Verified")
+                                {
+                                    <div class="mt-2">
+                                        <span class="badge bg-success" style="font-size: 0.7rem;">
+                                            <span class="bi bi-shield-check"></span> Verified
+                                        </span>
+                                    </div>
+                                }
+
+                                @* Proof Link Indicator *@
+                                @if (!string.IsNullOrEmpty(task.ProofLink) || !string.IsNullOrEmpty(task.ProofFileName))
+                                {
+                                    <div class="mt-1" style="font-size: 0.7rem; color: #283618; opacity: 0.8;">
+                                        <span class="bi bi-paperclip"></span> Evidence Attached
+                                    </div>
+                                }
                             </div>
-                            <div class="card-actions">
-                                <button class="btn-move-back" @onclick='() => MoveTask(task, "Doing")'>
-                                    <span class="bi bi-arrow-left-short"></span> Undo
-                                </button>
-                            </div>
+
+                            @* ONLY allow Undo if NOT Verified *@
+                            @if (task.Status == "PendingReview")
+                            {
+                                <div class="card-actions">
+                                    <button class="btn-move-back" @onclick='() => MoveTask(task, "Doing")'>
+                                        <span class="bi bi-arrow-left-short"></span> Undo
+                                    </button>
+                                </div>
+                            }
                         </div>
                     }
                 </div>
@@ -183,8 +222,41 @@
     }
 </div>
 
+@* PROOF OF WORK MODAL *@
+<ToroModal @bind-IsVisible="isProofModalVisible" Title="Submit Proof">
+    <div class="new-task-form" style="box-shadow: none; border: none; padding: 0;">
+        <p class="mb-3 text-muted" style="font-size: 0.9rem;">Please provide evidence for <strong>@TaskToComplete?.Title</strong>.</p>
+
+        <div class="form-group mb-2">
+            <label class="small-label text-muted fw-bold" style="font-size: 0.7rem;">Proof Link (URL)</label>
+            <input @bind="ProofModel.Link" class="form-control task-input-compact" placeholder="https://..." />
+        </div>
+
+        <div class="form-group mb-2">
+            <label class="small-label text-muted fw-bold" style="font-size: 0.7rem;">Or Attach File (PDF/CSV)</label>
+            <InputFile OnChange="HandleFileSelected" class="form-control task-input-compact" accept=".pdf, .csv" />
+            @if (!string.IsNullOrEmpty(ProofModel.FileName))
+            {
+                <div class="text-success small mt-1">
+                    <span class="bi bi-file-earmark-check"></span> @ProofModel.FileName selected
+                </div>
+            }
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="small-label text-muted fw-bold" style="font-size: 0.7rem;">Completion Notes</label>
+            <textarea @bind="ProofModel.Notes" class="form-control task-input-compact" rows="3" placeholder="Describe the outcome..."></textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn-save-task" @onclick="FinalizeCompleteTask">Submit & Complete</button>
+            <button class="btn-cancel-task" @onclick="() => isProofModalVisible = false">Cancel</button>
+        </div>
+    </div>
+</ToroModal>
+
 @code {
-    // ... [Code Block unchanged] ...
+    // ... [RenderCardContent same as before] ...
     private RenderFragment RenderCardContent(KanbanTask task) => __builder =>
     {
         <div class="card-content">
@@ -192,7 +264,7 @@
                 <span class="badge-priority @task.Priority.ToLower()">@task.Priority</span>
                 @if (task.DueDate.HasValue)
                 {
-                    var isOverdue = task.DueDate.Value < DateTime.Now.Date && task.Status != "Done";
+                    var isOverdue = task.DueDate.Value < DateTime.Now.Date && task.Status != "Verified";
                     <small class="@(isOverdue ? "text-danger fw-bold" : "text-muted")" style="font-size: 0.75rem;">
                         <span class="bi bi-calendar-event"></span> @task.DueDate.Value.ToString("MMM dd")
                     </small>
@@ -206,6 +278,7 @@
         </div>
     };
 
+    // ... [Models] ...
     public class KanbanProject
     {
         public int Id { get; set; }
@@ -221,7 +294,18 @@
         public string Description { get; set; } = "";
         public string Priority { get; set; } = "Medium";
         public DateTime? DueDate { get; set; }
+        // Statuses: Backlog, Doing, PendingReview, Verified
         public string Status { get; set; } = "Backlog";
+        public string ProofLink { get; set; } = "";
+        public string ProofNotes { get; set; } = "";
+        public string ProofFileName { get; set; } = "";
+    }
+
+    public class ProofOfWork
+    {
+        public string Link { get; set; } = "";
+        public string Notes { get; set; } = "";
+        public string FileName { get; set; } = "";
     }
 
     private List<KanbanProject> ActiveProjects = new();
@@ -230,6 +314,9 @@
 
     private bool isAddingTask = false;
     private KanbanTask NewTaskModel = new() { DueDate = DateTime.Now.AddDays(1) };
+    private bool isProofModalVisible = false;
+    private KanbanTask? TaskToComplete;
+    private ProofOfWork ProofModel = new();
 
     protected override void OnInitialized()
     {
@@ -260,10 +347,10 @@
         {
             Tasks = new List<KanbanTask>
             {
-                new KanbanTask { Id = 1, Title = "Configure VPN Access", Description = "Setup OpenVPN for remote staff.", Priority = "High", DueDate = DateTime.Now.AddDays(-1), Status = "Done" },
+                // Example: One Verified, One Doing, One Pending Review
+                new KanbanTask { Id = 1, Title = "Configure VPN Access", Description = "Setup OpenVPN for remote staff.", Priority = "High", DueDate = DateTime.Now.AddDays(-1), Status = "Verified", ProofNotes = "VPN Confirmed" },
                 new KanbanTask { Id = 2, Title = "Firewall Rule Review", Description = "Audit current inbound rules.", Priority = "Medium", DueDate = DateTime.Now.AddDays(2), Status = "Doing" },
-                new KanbanTask { Id = 3, Title = "Deploy Antivirus", Description = "Install on all 50 endpoints.", Priority = "High", DueDate = DateTime.Now.AddDays(5), Status = "Backlog" },
-                new KanbanTask { Id = 4, Title = "Update Security Policy", Description = "Draft new BYOD policy.", Priority = "Low", DueDate = DateTime.Now.AddDays(10), Status = "Backlog" }
+                new KanbanTask { Id = 3, Title = "Deploy Antivirus", Description = "Install on all 50 endpoints.", Priority = "High", DueDate = DateTime.Now.AddDays(5), Status = "PendingReview", ProofLink = "http://logs.server.local" }
             };
         }
         else
@@ -275,6 +362,31 @@
     private void MoveTask(KanbanTask task, string newStatus)
     {
         task.Status = newStatus;
+    }
+
+    private void InitiateCompleteTask(KanbanTask task)
+    {
+        TaskToComplete = task;
+        ProofModel = new ProofOfWork();
+        isProofModalVisible = true;
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        ProofModel.FileName = e.File.Name;
+    }
+
+    private void FinalizeCompleteTask()
+    {
+        if (TaskToComplete != null)
+        {
+            // Why: Sets status to PendingReview instead of Verified
+            TaskToComplete.Status = "PendingReview";
+            TaskToComplete.ProofLink = ProofModel.Link;
+            TaskToComplete.ProofNotes = ProofModel.Notes;
+            TaskToComplete.ProofFileName = ProofModel.FileName;
+            isProofModalVisible = false;
+        }
     }
 
     private void AddTask()
@@ -305,6 +417,7 @@
     private int GetStageProgress()
     {
         if (!Tasks.Any()) return 0;
-        return (int)((double)Tasks.Count(t => t.Status == "Done") / Tasks.Count * 100);
+        // Only count VERIFIED tasks as 100% complete progress
+        return (int)((double)Tasks.Count(t => t.Status == "Verified") / Tasks.Count * 100);
     }
 }
