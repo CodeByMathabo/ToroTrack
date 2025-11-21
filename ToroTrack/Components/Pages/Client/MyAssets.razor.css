@@ -1,0 +1,134 @@
+﻿/* LAYOUT */
+.page-shell {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* HEADER */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--toro-bg);
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.summary-badge {
+    display: inline-block;
+    background-color: #283618;
+    color: #fefae0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+/* SECTIONS */
+.asset-section {
+    background-color: #e9edc9;
+    border-radius: 12px;
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.section-header {
+    font-size: 1.4rem;
+    color: var(--toro-bg);
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+}
+
+/* TABLES */
+.toro-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden; /* Rounded corners for table */
+}
+
+    .toro-table thead {
+        background-color: #a3b18a;
+        color: #283618;
+    }
+
+    .toro-table th {
+        padding: 1rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: bold;
+        text-align: left;
+    }
+
+    .toro-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+        color: #333;
+        vertical-align: middle;
+    }
+
+    .toro-table tr:last-child td {
+        border-bottom: none;
+    }
+
+/* BADGES & TEXT */
+.fw-bold {
+    font-weight: 700;
+}
+
+.text-muted {
+    color: #777;
+}
+
+.text-monospace {
+    font-family: monospace;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+.status-pill {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+    .status-pill.active {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .status-pill.expired {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+
+.user-badge {
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #555;
+}
