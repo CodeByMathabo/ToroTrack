@@ -1,0 +1,217 @@
+﻿/* LAYOUT */
+.page-shell {
+    padding: 1rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* HEADER */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--toro-bg);
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    margin: 0;
+}
+
+/* STATS CARDS */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.stat-card {
+    background-color: #ffc971; /* User Custom Color */
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+}
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+/* Score coloring context */
+.score-high {
+    border-left: 6px solid #283618;
+}
+/* Dark Green */
+.score-med {
+    border-left: 6px solid #f3722c;
+}
+/* Orange */
+.score-low {
+    border-left: 6px solid #dc3545;
+}
+/* Red */
+
+.stat-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: #666;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+}
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: 800;
+    color: #333;
+    line-height: 1;
+}
+
+.stat-trend {
+    font-size: 1.5rem;
+    color: #666;
+}
+
+/* TABLE STYLES */
+.table-container {
+    background-color: #e9edc9; /* User Custom Color */
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #283618; /* User Custom Border */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.toro-table thead {
+    background-color: #e9edc9; /* Light Olive */
+}
+
+.toro-table th {
+    padding: 1.2rem 1rem;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: #e9edc9; /* Note: This text color matches the bg, likely invisible. Consider changing to #283618 if text is hidden. */
+    font-weight: 700;
+}
+
+.toro-table td {
+    padding: 1.2rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #283618;
+}
+
+/* BADGES */
+.severity-pill {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+    .severity-pill.critical {
+        background-color: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+    }
+
+    .severity-pill.warning {
+        background-color: #fff3cd;
+        color: #664d03;
+        border: 1px solid #ffecb5;
+    }
+
+    .severity-pill.low {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        border: 1px solid #badbcc;
+    }
+
+/* ANIMATION */
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- NEW SMART ACTION BUTTONS --- */
+.btn-action-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 1px solid #283618;
+    background-color: white;
+    color: #283618;
+    cursor: pointer;
+    min-width: 110px; /* Ensures buttons are roughly same size */
+}
+
+    .btn-action-sm:hover {
+        background-color: #283618;
+        color: #fefae0;
+    }
+
+/* Licensing: Green/Olive (Fix it yourself) */
+.btn-action-license {
+    background-color: #e9edc9;
+    color: #283618;
+    border-color: #ccd5ae;
+}
+
+    .btn-action-license:hover {
+        background-color: #283618;
+        color: #fefae0;
+    }
+
+/* Process: Blue (Notify someone else) */
+.btn-action-process {
+    background-color: #e7f1ff;
+    color: #0d6efd;
+    border-color: #b6d4fe;
+}
+
+    .btn-action-process:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+/* Security: Red (Escalate immediately) */
+.btn-action-security {
+    background-color: #f8d7da;
+    color: #842029;
+    border-color: #f5c2c7;
+}
+
+    .btn-action-security:hover {
+        background-color: #dc3545;
+        color: white;
+    }
