@@ -1,0 +1,247 @@
+﻿/* LAYOUT */
+.page-shell {
+    padding: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    position: relative;
+}
+
+/* HEADER */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--toro-bg);
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* TABS NAVIGATION */
+.settings-tabs {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid rgba(40, 54, 24, 0.1);
+}
+
+.tab-link {
+    background: none;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+    .tab-link:hover {
+        color: var(--toro-bg);
+        background-color: rgba(40, 54, 24, 0.05);
+        border-radius: 6px 6px 0 0;
+    }
+
+    .tab-link.active {
+        color: var(--toro-bg);
+        border-bottom-color: var(--toro-bg);
+    }
+
+/* SECTIONS & CARDS */
+.section-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--toro-bg);
+    margin-bottom: 0.5rem;
+}
+
+.section-desc {
+    color: #666;
+    margin-bottom: 1.5rem;
+}
+
+.setting-card {
+    background-color: #e9edc9; /* Light Green Card */
+    border: 1px solid rgba(40, 54, 24, 0.15);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+/* TOGGLE ROWS */
+.toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.toggle-label {
+    font-weight: bold;
+    color: #283618;
+    font-size: 1rem;
+}
+
+.toggle-desc {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.divider {
+    height: 1px;
+    background-color: rgba(40, 54, 24, 0.1);
+    margin: 1rem 0;
+}
+
+/* CUSTOM SWITCH */
+.toro-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+    .toro-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc; /* Inactive Gray */
+    transition: .4s;
+    border-radius: 34px;
+}
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+input:checked + .slider {
+    background-color: var(--toro-bg);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--toro-bg);
+}
+
+input:checked + .slider:before {
+    transform: translateX(24px);
+}
+
+/* BUTTON STYLES */
+.btn-primary-toro {
+    background-color: var(--toro-bg);
+    color: var(--toro-text);
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+    .btn-primary-toro:hover {
+        background-color: var(--toro-hover);
+    }
+
+/* FORM INPUTS */
+.form-control {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 0.7rem;
+    border-radius: 6px;
+}
+
+    .form-control:disabled {
+        background-color: rgba(255,255,255,0.5);
+        color: #555;
+    }
+
+/* SECURITY ALERT & MANAGE BUTTON */
+.security-alert {
+    background-color: #e7f1ff;
+    border-color: #b6d4fe;
+    color: #084298;
+}
+
+.btn-manage-account {
+    white-space: nowrap;
+    text-decoration: none;
+    border: 1px solid #084298;
+    padding: 6px 12px;
+    border-radius: 4px;
+    color: #084298;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+    .btn-manage-account:hover {
+        background-color: #084298;
+        color: #fff;
+    }
+
+/* TOAST NOTIFICATION */
+.save-toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background-color: var(--toro-bg);
+    color: var(--toro-text);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: slideUp 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    z-index: 2000;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

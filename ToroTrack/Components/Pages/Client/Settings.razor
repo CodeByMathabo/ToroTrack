@@ -1,0 +1,170 @@
+﻿@page "/client/settings"
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Components.Layout
+@*attribute [Authorize(Roles = "Client")]*@
+@rendermode InteractiveServer
+
+<PageTitle>Settings | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header">
+        <div class="header-left">
+            <h1 class="page-title">Client Settings</h1>
+            <p class="page-subtitle">Manage your notification preferences and account details.</p>
+        </div>
+        <div class="header-right">
+            <button class="btn-primary-toro" @onclick="SaveChanges">
+                @if (isSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span> <span>Saving...</span>
+                }
+                else
+                {
+                    <span class="bi bi-save-fill me-2"></span> <span>Save Changes</span>
+                }
+            </button>
+        </div>
+    </header>
+
+    @* TABS NAVIGATION *@
+    <div class="settings-tabs">
+        <button class="tab-link @(ActiveTab == "Notifications" ? "active" : "")" @onclick='() => ActiveTab = "Notifications"'>
+            <span class="bi bi-bell"></span> Notifications
+        </button>
+        <button class="tab-link @(ActiveTab == "Account" ? "active" : "")" @onclick='() => ActiveTab = "Account"'>
+            <span class="bi bi-person-badge"></span> Account
+        </button>
+    </div>
+
+    <div class="settings-content">
+        @if (ActiveTab == "Notifications")
+        {
+            <div class="setting-section">
+                <h3 class="section-title">Email Alerts</h3>
+                <p class="section-desc">Choose when you want to receive email updates about your project.</p>
+
+                <div class="setting-card">
+                    @* TOGGLE 1 *@
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-label">Milestone Sign-off Ready</span>
+                            <p class="toggle-desc">Notify me when a project stage is completed and requires my electronic signature.</p>
+                        </div>
+                        <label class="toro-switch">
+                            <input type="checkbox" @bind="ClientPrefs.NotifyOnMilestone">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    @* TOGGLE 2 *@
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-label">Query Responses</span>
+                            <p class="toggle-desc">Notify me when an admin replies to my help desk queries.</p>
+                        </div>
+                        <label class="toro-switch">
+                            <input type="checkbox" @bind="ClientPrefs.NotifyOnQueryReply">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="divider"></div>
+
+                    @* TOGGLE 3 *@
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-label">Meeting Confirmations</span>
+                            <p class="toggle-desc">Receive calendar invites when a requested meeting is confirmed by an admin.</p>
+                        </div>
+                        <label class="toro-switch">
+                            <input type="checkbox" @bind="ClientPrefs.NotifyOnMeeting">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (ActiveTab == "Account")
+        {
+             <div class="setting-section">
+                <h3 class="section-title">Account Details</h3>
+                <p class="section-desc">Update your personal and organization information.</p>
+
+                <div class="setting-card">
+                    <div class="form-group mb-3">
+                        <label class="small-label">Company Name</label>
+                        <input @bind="AccountDetails.CompanyName" class="form-control" placeholder="Enter company name" />
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="small-label">Email Address</label>
+                        <input @bind="AccountDetails.Email" class="form-control" placeholder="name@company.com" type="email" />
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="small-label">Contact Number</label>
+                        <input @bind="AccountDetails.ContactNumber" class="form-control" placeholder="+27 XX XXX XXXX" />
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    
+    @* SUCCESS TOAST *@
+    @if (showSuccessMessage)
+    {
+        <div class="save-toast">
+            <span class="bi bi-check-circle-fill"></span> Changes Saved Successfully!
+        </div>
+    }
+</div>
+
+@code {
+    private string ActiveTab = "Notifications";
+    private bool isSaving = false;
+    private bool showSuccessMessage = false;
+
+    // Notification Settings Model
+    private ClientPreferences ClientPrefs = new()
+    {
+        NotifyOnMilestone = true,
+        NotifyOnQueryReply = true,
+        NotifyOnMeeting = false
+    };
+
+    // Account Settings Model
+    private ClientAccount AccountDetails = new()
+    {
+        CompanyName = "Law Firm Z",
+        Email = "client@lawfirmz.com",
+        ContactNumber = "+27 82 123 4567"
+    };
+
+    private async Task SaveChanges()
+    {
+        isSaving = true;
+        await Task.Delay(800); // Simulate DB save
+        isSaving = false;
+        
+        showSuccessMessage = true;
+        await Task.Delay(3000);
+        showSuccessMessage = false;
+    }
+
+    public class ClientPreferences
+    {
+        public bool NotifyOnMilestone { get; set; }
+        public bool NotifyOnQueryReply { get; set; }
+        public bool NotifyOnMeeting { get; set; }
+    }
+
+    public class ClientAccount
+    {
+        public string CompanyName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string ContactNumber { get; set; } = "";
+    }
+}

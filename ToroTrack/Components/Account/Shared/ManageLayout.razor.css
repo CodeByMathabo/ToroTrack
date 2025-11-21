@@ -1,0 +1,103 @@
+﻿/* LAYOUT CONTAINER */
+.page-shell {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* HEADER */
+.content-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--toro-bg);
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* GRID SYSTEM */
+.manage-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .manage-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* SIDEBAR CARD */
+.manage-sidebar {
+    background-color: #fff;
+    border-radius: 12px;
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* CONTENT CARD */
+.manage-content {
+    background-color: #e9edc9; /* Light Green Theme */
+    border-radius: 12px;
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    padding: 2.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    min-height: 400px;
+}
+
+/* GLOBAL FORM OVERRIDES FOR CHILD PAGES */
+::deep h3 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--toro-bg);
+    margin-bottom: 1.5rem;
+}
+
+::deep .form-label {
+    font-weight: bold;
+    color: #606c38;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+::deep .form-control {
+    border: 1px solid #ccc;
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+    background-color: #fff;
+    font-size: 0.95rem;
+}
+
+    ::deep .form-control:focus {
+        border-color: var(--toro-bg);
+        box-shadow: 0 0 0 3px rgba(40, 54, 24, 0.1);
+    }
+
+::deep .btn-primary {
+    background-color: var(--toro-bg);
+    border: none;
+    padding: 0.8rem 1.5rem;
+    font-weight: bold;
+    width: 100%;
+    margin-top: 1rem;
+    text-transform: uppercase;
+    transition: background-color 0.2s;
+}
+
+    ::deep .btn-primary:hover {
+        background-color: var(--toro-hover);
+    }

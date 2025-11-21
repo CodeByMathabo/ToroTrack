@@ -15,20 +15,25 @@
 <StatusMessage />
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-8">
         <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
             <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <input type="text" value="@username" class="form-control" placeholder="Please choose your username." disabled />
-                <label for="username" class="form-label">Username</label>
+            <ValidationSummary class="text-danger mb-3" role="alert" />
+
+            <div class="form-group mb-3">
+                <label class="small-label">Username</label>
+                <input type="text" value="@username" class="form-control" disabled />
             </div>
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.PhoneNumber" class="form-control" placeholder="Please enter your phone number." />
-                <label for="phone-number" class="form-label">Phone number</label>
+
+            <div class="form-group mb-4">
+                <label class="small-label">Phone Number</label>
+                <InputText @bind-Value="Input.PhoneNumber" class="form-control" placeholder="Enter your phone number" />
                 <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
+
+            <button type="submit" class="btn-primary-toro w-100">
+                <span class="bi bi-save-fill me-2"></span> Save Profile
+            </button>
         </EditForm>
     </div>
 </div>

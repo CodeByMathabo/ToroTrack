@@ -1,0 +1,26 @@
+﻿.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.nav-link {
+    color: #666;
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s;
+    border-left: 4px solid transparent;
+}
+
+    .nav-link:hover {
+        background-color: rgba(40, 54, 24, 0.05);
+        color: var(--toro-bg);
+    }
+
+    /* Active State matches your Green Theme */
+    .nav-link.active {
+        background-color: rgba(40, 54, 24, 0.1) !important;
+        color: var(--toro-bg) !important;
+        border-left-color: var(--toro-bg);
+    }
