@@ -1,0 +1,279 @@
+﻿@page "/admin/projects"
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using ToroTrack.Components.Layout
+@*attribute [Authorize(Roles = "Admin")]*@
+@rendermode InteractiveServer
+
+<PageTitle>Projects | Toro Track</PageTitle>
+
+<div class="page-shell">
+    @* UPDATED HEADER: Title - Search - Create Button *@
+    <header class="content-header">
+        <div class="header-left">
+            <h1 class="page-title">Project Management</h1>
+            <p class="page-subtitle">Create and monitor client projects.</p>
+        </div>
+
+        <div class="header-center">
+            <div class="search-wrapper">
+                <input type="text"
+                       @bind="SearchQuery"
+                       @bind:event="oninput"
+                       placeholder="Search projects..."
+                       class="search-input" />
+            </div>
+        </div>
+
+        <div class="header-right">
+            <button class="btn-primary-toro" @onclick="OpenCreateModal">
+                <span class="bi bi-plus-lg me-2"></span> Create Project
+            </button>
+        </div>
+    </header>
+
+    @* NEW STAT CARDS *@
+    <div class="stats-container">
+        <div class="stat-card">
+            <span class="stat-title">Total Projects</span>
+            <span class="stat-number">@DummyProjects.Count</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-title">Suspended Projects</span>
+            <span class="stat-number">@DummyProjects.Count(p => !p.IsActive)</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-title">Completed Projects</span>
+            @* Why: Hardcoded for UI demo until automation logic is linked *@
+            <span class="stat-number">0</span>
+        </div>
+    </div>
+
+    @* Data Grid / Table *@
+    <div class="table-container">
+        <table class="toro-table project-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%">Client</th>
+                    <th style="width: 15%">Start Date</th>
+                    <th style="width: 15%">Due Date</th>
+                    <th style="width: 15%">Active Team</th>
+                    <th style="width: 15%">Progress</th>
+                    <th style="width: 8%" class="text-center">Status</th>
+                    <th style="width: 7%" class="text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var project in FilteredProjects)
+                {
+                    <tr class="@(project.IsActive ? "" : "row-inactive")">
+                        <td>
+                            <div class="fw-bold">@project.ClientName</div>
+                            <small class="text-muted">@project.ClientEmail</small>
+                        </td>
+                        <td>@project.StartDate.ToString("MMM dd, yyyy")</td>
+                        <td>@project.DueDate.ToString("MMM dd, yyyy")</td>
+                        <td>
+                            <span class="team-badge">@project.CurrentTeam</span>
+                        </td>
+                        <td>
+                            <div class="progress-wrapper">
+                                <div class="progress-bar-bg">
+                                    <div class="progress-fill" style="width: @(project.ProgressPercent)%"></div>
+                                </div>
+                                <span class="progress-text">@project.ProgressPercent%</span>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            @if (project.IsActive)
+                            {
+                                <span class="status-badge active">Active</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge inactive">Suspended</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            @* Why: Replaced icon with specific button style as requested *@
+                            <button class="btn-edit-custom" @onclick="() => EditProject(project)">
+                                Edit
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
+    <EditForm Model="InputModel" OnValidSubmit="HandleSubmit" FormName="projectForm">
+        <DataAnnotationsValidator />
+
+        <div class="form-group">
+            <label class="small-label">Client</label>
+            @if (isEditing)
+            {
+                <input type="text" class="form-control" value="@GetClientNameById(InputModel.SelectedClientId)" disabled />
+                <input type="hidden" @bind="InputModel.SelectedClientId" />
+            }
+            else
+            {
+                <InputSelect @bind-Value="InputModel.SelectedClientId" class="form-select form-control">
+                    <option value="">Select Invited Client</option>
+                    @foreach (var client in InvitedClients)
+                    {
+                        <option value="@client.Id">@client.Name (@client.Email)</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => InputModel.SelectedClientId)" class="text-danger" />
+            }
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label class="small-label">Start Date</label>
+                    <InputDate @bind-Value="InputModel.StartDate" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label class="small-label">Due Date</label>
+                    <InputDate @bind-Value="InputModel.DueDate" class="form-control" min="@InputModel.StartDate.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions mt-4 text-end">
+            <button type="submit" class="btn-primary-toro">
+                <span class="bi bi-save me-2"></span> @(isEditing ? "Save Changes" : "Initialize Project")
+            </button>
+        </div>
+    </EditForm>
+</ToroModal>
+
+@code {
+    private bool isModalVisible = false;
+    private bool isEditing = false;
+    private string modalTitle = "";
+    private string SearchQuery { get; set; } = "";
+
+    public class ClientOption
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+    }
+
+    private List<ClientOption> InvitedClients = new()
+    {
+        new ClientOption { Id = "c1", Name = "Law Firm Z", Email = "client@lawfirmz.com" },
+        new ClientOption { Id = "c2", Name = "Retail Corp", Email = "admin@retailcorp.co.za" },
+        new ClientOption { Id = "c3", Name = "Logistics Co", Email = "info@logisticsco.com" }
+    };
+
+    [SupplyParameterFromForm]
+    private ProjectInputModel InputModel { get; set; } = new();
+
+    private List<ProjectViewModel> DummyProjects = new()
+    {
+        new ProjectViewModel { Id = 1, ClientName = "Law Firm Z", ClientEmail = "client@lawfirmz.com", StartDate = DateTime.Now, DueDate = DateTime.Now.AddMonths(3), CurrentTeam = "Network & Security", ProgressPercent = 40, IsActive = true },
+        new ProjectViewModel { Id = 2, ClientName = "Law Firm Z", ClientEmail = "client@lawfirmz.com", StartDate = DateTime.Now.AddDays(12), DueDate = DateTime.Now.AddMonths(1), CurrentTeam = "Infrastructure", ProgressPercent = 0, IsActive = true }
+    };
+
+    // Why: Filters the list based on search input
+    private IEnumerable<ProjectViewModel> FilteredProjects =>
+        string.IsNullOrWhiteSpace(SearchQuery)
+        ? DummyProjects
+        : DummyProjects.Where(p => p.ClientName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) || p.ClientEmail.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+
+    private void OpenCreateModal()
+    {
+        isEditing = false;
+        modalTitle = "Initialize New Project";
+        InputModel = new ProjectInputModel
+        {
+            StartDate = DateTime.Now,
+            DueDate = DateTime.Now.AddMonths(1)
+        };
+        isModalVisible = true;
+    }
+
+    private void EditProject(ProjectViewModel project)
+    {
+        isEditing = true;
+        modalTitle = "Edit Project Details";
+
+        var matchedClient = InvitedClients.FirstOrDefault(c => c.Email == project.ClientEmail);
+
+        InputModel = new ProjectInputModel
+        {
+            Id = project.Id,
+            SelectedClientId = matchedClient?.Id ?? "",
+            StartDate = project.StartDate,
+            DueDate = project.DueDate
+        };
+        isModalVisible = true;
+    }
+
+    private void HandleSubmit()
+    {
+        var client = InvitedClients.FirstOrDefault(c => c.Id == InputModel.SelectedClientId);
+        if (client == null) return;
+
+        if (isEditing)
+        {
+            var target = DummyProjects.FirstOrDefault(p => p.Id == InputModel.Id);
+            if (target != null)
+            {
+                target.StartDate = InputModel.StartDate;
+                target.DueDate = InputModel.DueDate;
+            }
+        }
+        else
+        {
+            var newProject = new ProjectViewModel
+            {
+                Id = DummyProjects.Count + 1,
+                ClientName = client.Name,
+                ClientEmail = client.Email,
+                StartDate = InputModel.StartDate,
+                DueDate = InputModel.DueDate,
+                CurrentTeam = "Infrastructure",
+                ProgressPercent = 0,
+                IsActive = true
+            };
+            DummyProjects.Add(newProject);
+        }
+
+        isModalVisible = false;
+    }
+
+    private string GetClientNameById(string id)
+    {
+        return InvitedClients.FirstOrDefault(c => c.Id == id)?.Name ?? "Unknown";
+    }
+
+    public class ProjectInputModel
+    {
+        public int Id { get; set; }
+        [Required(ErrorMessage = "Please select an invited client.")]
+        public string SelectedClientId { get; set; } = "";
+        public DateTime StartDate { get; set; }
+        public DateTime DueDate { get; set; }
+    }
+
+    public class ProjectViewModel
+    {
+        public int Id { get; set; }
+        public string ClientName { get; set; } = "";
+        public string ClientEmail { get; set; } = "";
+        public DateTime StartDate { get; set; }
+        public DateTime DueDate { get; set; }
+        public string CurrentTeam { get; set; } = "";
+        public int ProgressPercent { get; set; }
+        public bool IsActive { get; set; }
+    }
+}

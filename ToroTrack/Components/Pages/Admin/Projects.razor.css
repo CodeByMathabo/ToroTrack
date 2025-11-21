@@ -1,0 +1,217 @@
+﻿/* LAYOUT GRID */
+.page-shell {
+    padding: 1rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* HEADER LAYOUT */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+    gap: 20px;
+}
+
+.header-left {
+    /* Why: Use auto to ensure width fits the text without wrapping */
+    flex: 0 0 auto;
+    min-width: 350px;
+}
+
+.header-center {
+    /* Why: Takes remaining space, effectively shifting center right as left grows */
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    /* Why: Nudges the search bar further right as requested */
+    padding-left: 4rem;
+}
+
+.header-right {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* SEARCH BAR STYLE */
+.search-wrapper {
+    width: 100%;
+    max-width: 400px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border-radius: 30px; /* Rounded pill shape */
+    border: 1px solid #aaa;
+    background-color: #c2c5aa;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+    .search-input:focus {
+        border-color: var(--toro-bg);
+        box-shadow: 0 0 0 2px rgba(40, 54, 24, 0.1);
+    }
+
+/* STAT CARDS */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.stat-card {
+    background-color: #e9edc9; /* Light Green */
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border-left: 5px solid var(--toro-bg);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.stat-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--toro-hover); /* Sage Green */
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--toro-bg); /* Dark Green */
+}
+
+/* TABLE CONTAINER */
+.table-container {
+    background-color: #a3b18a;
+    border-radius: 8px;
+    padding: 0;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    overflow: hidden;
+}
+
+/* TABLE HEADER */
+.project-table thead {
+    background-color: var(--toro-bg);
+}
+
+.project-table th {
+    color: var(--toro-text) !important; /* Cream */
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    padding: 1.2rem 1rem;
+    border-bottom: none;
+    font-weight: 600;
+}
+
+.project-table td {
+    vertical-align: middle;
+    padding: 1.1rem 1rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+    color: #333;
+    background-color: #a3b18a;
+}
+
+/* CUSTOM EDIT BUTTON */
+.btn-edit-custom {
+    background-color: #283618;
+    color: #ccd5ae;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+    .btn-edit-custom:hover {
+        opacity: 0.9;
+    }
+
+/* STATUS ROW STYLES */
+.row-inactive td {
+    opacity: 0.6;
+    background-color: rgba(0,0,0,0.02);
+}
+
+.fw-bold {
+    font-weight: 700;
+    color: var(--toro-bg);
+}
+
+/* BADGES & PROGRESS */
+.team-badge {
+    background-color: #e9edc9;
+    color: #283618;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 1px solid rgba(40, 54, 24, 0.2);
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.status-badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+}
+
+    .status-badge.active {
+        color: var(--toro-bg);
+        border: 1px solid var(--toro-bg);
+    }
+
+    .status-badge.inactive {
+        color: #dc3545;
+        border: 1px solid #dc3545;
+    }
+
+.progress-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.progress-bar-bg {
+    flex-grow: 1;
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--toro-orange);
+    transition: width 0.4s ease;
+    border-radius: 10px;
+}
+
+.progress-text {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--toro-hover);
+    min-width: 35px;
+    text-align: right;
+}
