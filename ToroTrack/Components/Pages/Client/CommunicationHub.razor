@@ -1,0 +1,270 @@
+﻿@page "/client/communication"
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Components.Layout
+@attribute [Authorize(Roles = "Client")]
+@rendermode InteractiveServer
+
+<PageTitle>Communication Hub | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header">
+        <div>
+            <h1 class="page-title">Communication Hub</h1>
+            <p class="page-subtitle">Manage your support tickets and schedule meetings with our team.</p>
+        </div>
+    </header>
+
+    @* SPLIT LAYOUT *@
+    <div class="hub-grid">
+
+        @* LEFT PANEL: HELP DESK (Queries) *@
+        <section class="hub-panel help-desk-panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title"><span class="bi bi-life-preserver me-2"></span> Help Desk Queries</h2>
+                    <p class="panel-desc">Report issues or ask questions about your project.</p>
+                </div>
+                <button class="btn-panel-action" @onclick="OpenQueryModal">
+                    <span class="bi bi-plus-lg me-2"></span> Raise Query
+                </button>
+            </div>
+
+            <div class="panel-content-scroll">
+                @if (MyQueries.Any())
+                {
+                    <div class="list-group">
+                        @foreach (var query in MyQueries)
+                        {
+                            <div class="list-group-item query-item @(query.IsResolved ? "resolved" : "")">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h5 class="mb-1">@query.Subject</h5>
+                                    <small class="text-muted">#@query.TicketId</small>
+                                </div>
+                                <p class="mb-1 text-truncate">@query.Message</p>
+
+                                @* Date left, Status right (Blue Text) *@
+                                <div class="query-meta-row">
+                                    <small class="text-muted">@query.DateSubmitted.ToString("MMM dd, HH:mm")</small>
+                                    <span class="status-text">
+                                        @if (query.IsResolved)
+                                        {
+                                            <span class="bi bi-check2-circle me-1"></span> 
+                                            @("Resolved")
+                                        }
+                                        else
+                                        {
+                                            <span class="bi bi-hourglass-split me-1"></span> 
+                                            @("Pending")
+                                        }
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-panel-state">
+                        <span class="bi bi-inbox fs-1 text-muted"></span>
+                        <p>No queries submitted yet.</p>
+                    </div>
+                }
+            </div>
+        </section>
+
+        @* RIGHT PANEL: SCHEDULE MEETINGS *@
+        <section class="hub-panel schedule-panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title"><span class="bi bi-calendar-event me-2"></span> Meeting Schedule</h2>
+                    <p class="panel-desc">Book a time to discuss project progress.</p>
+                </div>
+                <button class="btn-panel-action" @onclick="OpenMeetingModal">
+                    <span class="bi bi-plus-lg me-2"></span> Schedule Meeting
+                </button>
+            </div>
+
+            <div class="panel-content-scroll">
+                @if (MyMeetings.Any())
+                {
+                    <div class="list-group">
+                        @foreach (var meeting in MyMeetings.OrderBy(m => m.DateTime))
+                        {
+                            <div class="list-group-item meeting-item @(meeting.DateTime < DateTime.Now ? "past" : "")">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <h5 class="mb-1">@meeting.Topic</h5>
+                                    @if (meeting.DateTime < DateTime.Now)
+                                    {
+                                        <span class="badge bg-secondary">Past</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary">Upcoming</span>
+                                    }
+                                </div>
+                                <div class="meeting-details mt-2">
+                                    <div>
+                                        <span class="bi bi-calendar-day me-2 text-muted"></span>
+                                        <strong>@meeting.DateTime.ToString("dddd, MMMM dd")</strong>
+                                    </div>
+                                    <div>
+                                        <span class="bi bi-clock me-2 text-muted"></span>
+                                        @meeting.DateTime.ToString("HH:mm") - @meeting.DateTime.AddMinutes(meeting.DurationMinutes).ToString("HH:mm")
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(meeting.MeetingLink))
+                                    {
+                                        <div class="mt-1">
+                                            <a href="@meeting.MeetingLink" target="_blank" class="meeting-link">
+                                                <span class="bi bi-camera-video-fill me-1"></span> Join Meeting
+                                            </a>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-panel-state">
+                        <span class="bi bi-calendar-x fs-1 text-muted"></span>
+                        <p>No upcoming meetings scheduled.</p>
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+</div>
+
+@* --- MODALS --- *@
+
+@* RAISE QUERY MODAL *@
+<ToroModal @bind-IsVisible="isQueryModalVisible" Title="Submit a Query">
+    <EditForm Model="QueryInput" OnValidSubmit="HandleQuerySubmit">
+        <DataAnnotationsValidator />
+        <p class="text-muted mb-4 small">Your query will be sent to the Admin team.</p>
+        <div class="form-group mb-3">
+            <label class="small-label">Subject</label>
+            <InputText @bind-Value="QueryInput.Subject" class="form-control" placeholder="e.g. Login Issue..." />
+            <ValidationMessage For="@(() => QueryInput.Subject)" class="text-danger" />
+        </div>
+        <div class="form-group mb-3">
+            <label class="small-label">Message</label>
+            <InputTextArea @bind-Value="QueryInput.Message" class="form-control" rows="5" placeholder="Describe issue..." />
+            <ValidationMessage For="@(() => QueryInput.Message)" class="text-danger" />
+        </div>
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn-cancel-modal" @onclick="() => isQueryModalVisible = false">Cancel</button>
+            <button type="submit" class="btn-primary-toro"><span class="bi bi-send-fill me-2"></span> Submit</button>
+        </div>
+    </EditForm>
+</ToroModal>
+
+@* SCHEDULE MEETING MODAL *@
+<ToroModal @bind-IsVisible="isMeetingModalVisible" Title="Schedule a Meeting">
+    <EditForm Model="MeetingInput" OnValidSubmit="HandleMeetingSubmit">
+        <DataAnnotationsValidator />
+
+        <p class="text-muted mb-4 small">
+            Request a meeting time. An admin will confirm the slot and send a calendar invite.
+        </p>
+
+        <div class="form-group mb-3">
+            <label class="small-label">Topic / Purpose</label>
+            <InputText @bind-Value="MeetingInput.Topic" class="form-control" placeholder="e.g. Stage 2 Progress Review" />
+            <ValidationMessage For="@(() => MeetingInput.Topic)" class="text-danger" />
+        </div>
+
+        <div class="row">
+            <div class="col-md-7">
+                <div class="form-group mb-3">
+                    <label class="small-label">Date & Start Time</label>
+                    <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="MeetingInput.DateTime" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                    <ValidationMessage For="@(() => MeetingInput.DateTime)" class="text-danger" />
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="form-group mb-3">
+                    <label class="small-label">Duration</label>
+                    <InputSelect @bind-Value="MeetingInput.DurationMinutes" class="form-select">
+                        <option value="30">30 Minutes</option>
+                        <option value="45">45 Minutes</option>
+                        <option value="60">1 Hour</option>
+                    </InputSelect>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="small-label">Additional Notes (Optional)</label>
+            <InputTextArea @bind-Value="MeetingInput.Notes" class="form-control" rows="3" placeholder="Any specific agenda items?" />
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+            <button type="button" class="btn-cancel-modal" @onclick="() => isMeetingModalVisible = false">Cancel</button>
+            <button type="submit" class="btn-primary-toro">
+                <span class="bi bi-calendar-plus-fill me-2"></span> Request Meeting
+            </button>
+        </div>
+    </EditForm>
+</ToroModal>
+
+@code {
+    // --- STATE ---
+    private bool isQueryModalVisible = false;
+    private bool isMeetingModalVisible = false;
+    private List<QueryTicket> MyQueries = new();
+    private List<ClientMeeting> MyMeetings = new();
+
+    [SupplyParameterFromForm(FormName = "QueryForm")]
+    private QueryInputModel QueryInput { get; set; } = new();
+
+    [SupplyParameterFromForm(FormName = "MeetingForm")]
+    private MeetingInputModel MeetingInput { get; set; } = new() { DateTime = DateTime.Now.AddDays(1).Date.AddHours(10) }; // Default to tomorrow 10am
+
+    // --- MODELS ---
+    public class QueryTicket { public string TicketId { get; set; } = ""; public string Subject { get; set; } = ""; public string Message { get; set; } = ""; public DateTime DateSubmitted { get; set; } public bool IsResolved { get; set; } }
+    public class QueryInputModel { [System.ComponentModel.DataAnnotations.Required] public string Subject { get; set; } = ""; [System.ComponentModel.DataAnnotations.Required] public string Message { get; set; } = ""; }
+
+    // NEW MODELS
+    public class ClientMeeting
+    {
+        public int Id { get; set; }
+        public string Topic { get; set; } = "";
+        public DateTime DateTime { get; set; }
+        public int DurationMinutes { get; set; }
+        public string MeetingLink { get; set; } = ""; // Populated by Admin later
+    }
+
+    public class MeetingInputModel
+    {
+        [System.ComponentModel.DataAnnotations.Required] public string Topic { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required] public DateTime DateTime { get; set; }
+        public int DurationMinutes { get; set; } = 30;
+        public string Notes { get; set; } = "";
+    }
+
+    // --- LOGIC ---
+    protected override void OnInitialized()
+    {
+        // Mock Queries
+        MyQueries = new List<QueryTicket>
+        {
+             new QueryTicket { TicketId = "1042", Subject = "Azure Access Issue", Message = "We are unable to login...", DateSubmitted = DateTime.Now.AddHours(-2), IsResolved = false },
+             new QueryTicket { TicketId = "998", Subject = "Invoice Clarification", Message = "Can you explain the line item...", DateSubmitted = DateTime.Now.AddDays(-5), IsResolved = true }
+        };
+
+        // Mock Meetings
+        MyMeetings = new List<ClientMeeting>
+        {
+            new ClientMeeting { Id = 1, Topic = "Project Kick-off", DateTime = DateTime.Now.AddDays(-10), DurationMinutes = 60, MeetingLink = "https://teams.microsoft.com/l/meetup-join/..." },
+            new ClientMeeting { Id = 2, Topic = "Stage 1 Review", DateTime = DateTime.Now.AddDays(2).AddHours(14), DurationMinutes = 45, MeetingLink = "" } // Upcoming, no link yet
+        };
+    }
+
+    private void OpenQueryModal() { QueryInput = new QueryInputModel(); isQueryModalVisible = true; }
+    private void HandleQuerySubmit() { /* Sim sending */ MyQueries.Insert(0, new QueryTicket { TicketId = "9999", Subject = QueryInput.Subject, Message = QueryInput.Message, DateSubmitted = DateTime.Now, IsResolved = false }); isQueryModalVisible = false; }
+
+    private void OpenMeetingModal() { MeetingInput = new MeetingInputModel { DateTime = DateTime.Now.AddDays(1).Date.AddHours(10) }; isMeetingModalVisible = true; }
+    private void HandleMeetingSubmit() { /* Sim sending request */ MyMeetings.Add(new ClientMeeting { Id = 99, Topic = MeetingInput.Topic, DateTime = MeetingInput.DateTime, DurationMinutes = MeetingInput.DurationMinutes }); isMeetingModalVisible = false; }
+}

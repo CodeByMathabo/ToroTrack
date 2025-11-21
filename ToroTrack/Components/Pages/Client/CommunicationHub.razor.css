@@ -1,0 +1,204 @@
+﻿/* LAYOUT */
+.page-shell {
+    padding: 2rem;
+    max-width: 1400px; /* Wider for split view */
+    margin: 0 auto;
+    height: calc(100vh - 6rem); /* Full height */
+    display: flex;
+    flex-direction: column;
+}
+
+/* HEADER */
+.content-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+    flex-shrink: 0;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--toro-bg);
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* HUB GRID (Split Panels) */
+.hub-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    flex-grow: 1;
+    min-height: 0; /* Required for scrolling inside grid items */
+}
+
+@media (max-width: 992px) {
+    .hub-grid {
+        grid-template-columns: 1fr;
+    }
+    /* Stack on smaller screens */
+}
+
+/* PANEL STYLES */
+.hub-panel {
+    background-color: #e9edc9;
+    border-radius: 12px;
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* Panel Theme Colors */
+.help-desk-panel .panel-header {
+    background-color: #a3b18a; /* Light Blue */
+    color: var(--toro-bg);
+}
+
+.schedule-panel .panel-header {
+    background-color: #a3b18a; /* Light Green */
+    color: var(--toro-bg);
+}
+
+.panel-header {
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.panel-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.panel-desc {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.btn-panel-action {
+    background-color: #c2c5aa;
+    border: 1px solid currentColor; /* Inherits header text color */
+    color: inherit;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+    .btn-panel-action:hover {
+        background-color: rgba(255,255,255,0.5);
+    }
+
+/* SCROLLABLE CONTENT */
+.panel-content-scroll {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+/* LIST ITEMS */
+.list-group-item {
+    border: 1px solid rgba(0,0,0,0.08);
+    margin-bottom: 0.8rem;
+    border-radius: 8px !important;
+    padding: 1rem;
+    transition: transform 0.1s;
+}
+
+    .list-group-item:hover {
+        transform: translateX(4px);
+        border-color: rgba(0,0,0,0.15);
+    }
+
+/* --- QUERY STATUS STYLING (NEW) --- */
+.query-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.status-text {
+    color: #023e8a; /* Strong Blue */
+    font-weight: 800; /* Bold */
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Query Item Styles */
+.query-item.resolved {
+    background-color: #f8f9fa;
+    opacity: 0.8;
+}
+
+/* Meeting Item Styles */
+.meeting-item.past {
+    background-color: #f8f9fa;
+    opacity: 0.7;
+}
+
+.meeting-details {
+    font-size: 0.9rem;
+    color: #555;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.meeting-link {
+    color: #0d6efd;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+    .meeting-link:hover {
+        text-decoration: underline;
+    }
+
+/* EMPTY STATE */
+.empty-panel-state {
+    text-align: center;
+    padding: 3rem;
+    color: #aaa;
+}
+
+    .empty-panel-state p {
+        margin-top: 1rem;
+        font-size: 1.1rem;
+    }
+
+/* MODAL & FORM STYLES */
+.btn-cancel-modal {
+    background: transparent;
+    border: 1px solid #999;
+    color: #666;
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.form-control, .form-select {
+    background-color: #fff;
+    border: 1px solid #ccc;
+}
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--toro-bg);
+        box-shadow: 0 0 0 3px rgba(40, 54, 24, 0.1);
+    }

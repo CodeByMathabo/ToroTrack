@@ -13,7 +13,6 @@
 
     <div class="nav-links-scroll">
 
-        @*Admin Role Section *@
         <AuthorizeView Roles="Admin">
             <Authorized>
                 <div class="menu-section-label">Administration Portal</div>
@@ -27,7 +26,6 @@
             </Authorized>
         </AuthorizeView>
 
-        @*Team Member Role Section *@
         <AuthorizeView Roles="TeamMember">
             <Authorized>
                 <div class="menu-section-label">Team Portal</div>
@@ -41,7 +39,6 @@
             </Authorized>
         </AuthorizeView>
 
-        @*Auditor Role Section *@
         <AuthorizeView Roles="Auditor">
             <Authorized>
                 <div class="menu-section-label">Auditing Portal</div>
@@ -55,7 +52,6 @@
             </Authorized>
         </AuthorizeView>
 
-        @*Client Role Section *@
         <AuthorizeView Roles="Client">
             <Authorized>
                 <div class="menu-section-label">Client Portal</div>
@@ -140,10 +136,9 @@
     /* CLIENT LINKS */
     private List<NavItem> ClientLinks = new()
     {
-        new NavItem { Label = "Project Details", Url = "client/project-details", IconClass = "bi bi-info-circle" },
-        new NavItem { Label = "Raise Query",     Url = "client/query",           IconClass = "bi bi-question-circle" },
-        new NavItem { Label = "Agenda",          Url = "client/agenda",          IconClass = "bi bi-calendar-event" },
-        new NavItem { Label = "Settings",        Url = "client/settings",        IconClass = "bi bi-gear" }
+        new NavItem { Label = "Project Details",   Url = "client/project-details", IconClass = "bi bi-info-circle" },
+        new NavItem { Label = "Communication Hub", Url = "client/communication",   IconClass = "bi bi-chat-square-text" },
+        new NavItem { Label = "Settings",          Url = "client/settings",        IconClass = "bi bi-gear" }
     };
 
     /* AUDITOR LINKS */
