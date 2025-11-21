@@ -1,0 +1,232 @@
+﻿/* LAYOUT */
+.page-shell {
+    padding: 1rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* HEADER */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--toro-bg);
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    margin: 0;
+}
+
+/* SEARCH BOX */
+.search-box {
+    position: relative;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #283618;
+    opacity: 0.5;
+}
+
+.toro-search {
+    padding: 8px 12px 8px 36px;
+    border-radius: 20px;
+    border: 1px solid rgba(40, 54, 24, 0.3);
+    font-size: 0.9rem;
+    width: 280px;
+    background-color: #dad7cd; 
+    color: #283618;
+    outline: none;
+    transition: box-shadow 0.2s;
+}
+
+    .toro-search:focus {
+        box-shadow: 0 0 0 2px rgba(40, 54, 24, 0.1);
+        border-color: var(--toro-bg);
+    }
+
+/* FILTER BAR */
+.filter-bar {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.filter-pill {
+    background: transparent;
+    border: 1px solid rgba(40, 54, 24, 0.2);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+}
+
+    .filter-pill:hover {
+        background-color: rgba(40, 54, 24, 0.05);
+        color: var(--toro-bg);
+    }
+
+    .filter-pill.active {
+        background-color: var(--toro-bg);
+        color: #fefae0;
+        border-color: var(--toro-bg);
+    }
+
+/* EXPORT BUTTON */
+.btn-outline-toro-sm {
+    background: white;
+    border: 1px solid var(--toro-bg);
+    color: var(--toro-bg);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+    .btn-outline-toro-sm:hover {
+        background-color: var(--toro-bg);
+        color: #fefae0;
+    }
+
+/* TABLE STYLES */
+.table-container {
+    background-color: #a3b18a;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.toro-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+    .toro-table thead {
+        background-color: #e9edc9; /* Light Olive */
+    }
+
+    .toro-table th {
+        padding: 1.2rem 1rem;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #bcbd8b;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+    }
+
+    .toro-table td {
+        padding: 1rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #eee;
+        color: #333;
+    }
+
+/* ALERT ROW STYLING */
+.row-alert td {
+    background-color: rgba(220, 53, 69, 0.04); /* Slight Red Tint */
+}
+
+/* USER CELL */
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar-xs {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.small-role {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: white;
+    font-weight: 600;
+}
+
+/* EVENT BADGES */
+.badge-event {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.badge-security {
+    color: #842029;
+    background-color: #f8d7da;
+    border: 1px solid #f5c2c7;
+}
+
+.badge-data {
+    color: #084298;
+    background-color: #cfe2ff;
+    border: 1px solid #b6d4fe;
+}
+
+.badge-system {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border: 1px solid #badbcc;
+}
+
+.meta-text {
+    font-family: monospace;
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.text-monospace {
+    font-family: 'Courier New', monospace;
+}
+
+/* ANIMATION */
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
