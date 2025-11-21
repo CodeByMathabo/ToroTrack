@@ -1,0 +1,310 @@
+﻿@page "/team/kanban"
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Components.Layout
+@*attribute [Authorize(Roles = "TeamMember")] *@
+@rendermode InteractiveServer
+
+<PageTitle>Kanban Board | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header">
+        <div class="header-left">
+            <h1 class="page-title">Project Kanban</h1>
+            <p class="page-subtitle">Manage tasks for active project stages.</p>
+        </div>
+
+        <div class="header-center">
+            <div class="search-wrapper">
+                <select class="project-select" @onchange="OnProjectSelected">
+                    <option value="">-- Select an Active Project --</option>
+                    @foreach (var proj in ActiveProjects)
+                    {
+                        <option value="@proj.Id">@proj.ClientName (@proj.CurrentStageName)</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="header-right">
+            @if (SelectedProject != null)
+            {
+                <div class="stage-indicator">
+                    <span class="stage-label">Current Stage:</span>
+                    <span class="stage-value">@SelectedProject.CurrentStageName</span>
+                </div>
+            }
+        </div>
+    </header>
+
+    @if (SelectedProject == null)
+    {
+        <div class="empty-state-container">
+            <div class="empty-content">
+                <span class="bi bi-kanban display-1 text-muted mb-3"></span>
+                <h3>Select a Project</h3>
+                <p>Choose an active project from the dropdown above to view its Kanban board.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="automation-bar">
+            <div class="team-info">
+                <span class="bi bi-people-fill me-2"></span>
+                <strong>Assigned Team:</strong> @SelectedProject.AssignedTeam
+            </div>
+            <div class="stage-progress">
+                <span>Stage Progress: @GetStageProgress()%</span>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: @GetStageProgress()%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="kanban-board">
+
+            @* COLUMN 1: BACKLOG *@
+            <div class="kanban-column">
+                <div class="column-header">
+                    <span>Backlog</span>
+                    <span class="count-badge">@Tasks.Count(t => t.Status == "Backlog")</span>
+                </div>
+
+                <div class="column-body">
+                    @foreach (var task in Tasks.Where(t => t.Status == "Backlog"))
+                    {
+                        <div class="kanban-card">
+                            @RenderCardContent(task)
+                            <div class="card-actions">
+                                <button class="btn-move" @onclick='() => MoveTask(task, "Doing")'>
+                                    Start <span class="bi bi-arrow-right-short"></span>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="column-footer">
+                    @if (isAddingTask)
+                    {
+                        <div class="new-task-form">
+                            <div class="form-group mb-1">
+                                <input @bind="NewTaskModel.Title" class="form-control task-input-compact fw-bold" placeholder="Task Title" />
+                            </div>
+                            <div class="form-group mb-1">
+                                <textarea @bind="NewTaskModel.Description" class="form-control task-input-compact" placeholder="Description (Optional)" style="height: 2.5rem; resize: none;"></textarea>
+                            </div>
+
+                            <div class="row g-1 mb-2 align-items-center">
+                                <span class="input-group-text p-0 px-1" style="font-size: 0.7rem;">Priority</span>
+                                <div class="col-6">                       
+                                    <select @bind="NewTaskModel.Priority" class="form-select task-input-compact">
+                                        <option value="Low">Low Priority</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="High">High Priority</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text p-0 px-1" style="font-size: 0.7rem;">Due Date</span>
+                                        <input type="date" @bind="NewTaskModel.DueDate" class="form-control task-input-compact" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* Why: Removed w-50 and py-1 to let CSS control size properly *@
+                            <div class="d-flex gap-2">
+                                <button class="btn-save-task" @onclick="AddTask">Add Task</button>
+                                <button class="btn-cancel-task" @onclick="CancelAddTask">Cancel</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <button class="btn-add-trigger" @onclick="() => isAddingTask = true">
+                            <span class="bi bi-plus-circle-fill me-2"></span> Add New Task
+                        </button>
+                    }
+                </div>
+            </div>
+
+            @* COLUMN 2: DOING *@
+            <div class="kanban-column">
+                <div class="column-header">
+                    <span>In Progress</span>
+                    <span class="count-badge">@Tasks.Count(t => t.Status == "Doing")</span>
+                </div>
+                <div class="column-body">
+                    @foreach (var task in Tasks.Where(t => t.Status == "Doing"))
+                    {
+                        <div class="kanban-card doing-card">
+                            @RenderCardContent(task)
+                            <div class="card-actions">
+                                <button class="btn-move-back" @onclick='() => MoveTask(task, "Backlog")'>
+                                    <span class="bi bi-arrow-left-short"></span>
+                                </button>
+                                <button class="btn-move" @onclick='() => MoveTask(task, "Done")'>
+                                    Done <span class="bi bi-arrow-right-short"></span>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="column-footer empty"></div>
+            </div>
+
+            @* COLUMN 3: DONE *@
+            <div class="kanban-column">
+                <div class="column-header">
+                    <span>Done</span>
+                    <span class="count-badge">@Tasks.Count(t => t.Status == "Done")</span>
+                </div>
+                <div class="column-body">
+                    @foreach (var task in Tasks.Where(t => t.Status == "Done"))
+                    {
+                        <div class="kanban-card done-card">
+                            <div class="card-content">
+                                <p class="task-title text-decoration-line-through text-muted">
+                                    <span class="bi bi-check-circle-fill text-success me-2"></span>@task.Title
+                                </p>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn-move-back" @onclick='() => MoveTask(task, "Doing")'>
+                                    <span class="bi bi-arrow-left-short"></span> Undo
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="column-footer empty"></div>
+            </div>
+
+        </div>
+    }
+</div>
+
+@code {
+    // ... [Code Block unchanged] ...
+    private RenderFragment RenderCardContent(KanbanTask task) => __builder =>
+    {
+        <div class="card-content">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="badge-priority @task.Priority.ToLower()">@task.Priority</span>
+                @if (task.DueDate.HasValue)
+                {
+                    var isOverdue = task.DueDate.Value < DateTime.Now.Date && task.Status != "Done";
+                    <small class="@(isOverdue ? "text-danger fw-bold" : "text-muted")" style="font-size: 0.75rem;">
+                        <span class="bi bi-calendar-event"></span> @task.DueDate.Value.ToString("MMM dd")
+                    </small>
+                }
+            </div>
+            <p class="task-title">@task.Title</p>
+            @if (!string.IsNullOrEmpty(task.Description))
+            {
+                <p class="task-desc">@task.Description</p>
+            }
+        </div>
+    };
+
+    public class KanbanProject
+    {
+        public int Id { get; set; }
+        public string ClientName { get; set; } = "";
+        public string CurrentStageName { get; set; } = "";
+        public string AssignedTeam { get; set; } = "";
+    }
+
+    public class KanbanTask
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Priority { get; set; } = "Medium";
+        public DateTime? DueDate { get; set; }
+        public string Status { get; set; } = "Backlog";
+    }
+
+    private List<KanbanProject> ActiveProjects = new();
+    private KanbanProject? SelectedProject;
+    private List<KanbanTask> Tasks = new();
+
+    private bool isAddingTask = false;
+    private KanbanTask NewTaskModel = new() { DueDate = DateTime.Now.AddDays(1) };
+
+    protected override void OnInitialized()
+    {
+        ActiveProjects = new List<KanbanProject>
+        {
+            new KanbanProject { Id = 1, ClientName = "Law Firm Z", CurrentStageName = "Stage 2: Network Hardening", AssignedTeam = "Network & Security Team" },
+            new KanbanProject { Id = 2, ClientName = "Retail Corp", CurrentStageName = "Stage 4: Workflow Impl.", AssignedTeam = "Modern Workplace Team" }
+        };
+    }
+
+    private void OnProjectSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int projectId))
+        {
+            SelectedProject = ActiveProjects.FirstOrDefault(p => p.Id == projectId);
+            LoadTasksForProject(projectId);
+        }
+        else
+        {
+            SelectedProject = null;
+            Tasks.Clear();
+        }
+    }
+
+    private void LoadTasksForProject(int projectId)
+    {
+        if (projectId == 1)
+        {
+            Tasks = new List<KanbanTask>
+            {
+                new KanbanTask { Id = 1, Title = "Configure VPN Access", Description = "Setup OpenVPN for remote staff.", Priority = "High", DueDate = DateTime.Now.AddDays(-1), Status = "Done" },
+                new KanbanTask { Id = 2, Title = "Firewall Rule Review", Description = "Audit current inbound rules.", Priority = "Medium", DueDate = DateTime.Now.AddDays(2), Status = "Doing" },
+                new KanbanTask { Id = 3, Title = "Deploy Antivirus", Description = "Install on all 50 endpoints.", Priority = "High", DueDate = DateTime.Now.AddDays(5), Status = "Backlog" },
+                new KanbanTask { Id = 4, Title = "Update Security Policy", Description = "Draft new BYOD policy.", Priority = "Low", DueDate = DateTime.Now.AddDays(10), Status = "Backlog" }
+            };
+        }
+        else
+        {
+            Tasks = new List<KanbanTask>();
+        }
+    }
+
+    private void MoveTask(KanbanTask task, string newStatus)
+    {
+        task.Status = newStatus;
+    }
+
+    private void AddTask()
+    {
+        if (!string.IsNullOrWhiteSpace(NewTaskModel.Title))
+        {
+            Tasks.Add(new KanbanTask
+            {
+                Id = new Random().Next(100, 999),
+                Title = NewTaskModel.Title,
+                Description = NewTaskModel.Description,
+                Priority = NewTaskModel.Priority,
+                DueDate = NewTaskModel.DueDate,
+                Status = "Backlog"
+            });
+
+            NewTaskModel = new() { DueDate = DateTime.Now.AddDays(1) };
+            isAddingTask = false;
+        }
+    }
+
+    private void CancelAddTask()
+    {
+        isAddingTask = false;
+        NewTaskModel = new() { DueDate = DateTime.Now.AddDays(1) };
+    }
+
+    private int GetStageProgress()
+    {
+        if (!Tasks.Any()) return 0;
+        return (int)((double)Tasks.Count(t => t.Status == "Done") / Tasks.Count * 100);
+    }
+}

@@ -13,6 +13,7 @@
 
     <div class="nav-links-scroll">
 
+        @*Admin Role Section *@
         <AuthorizeView Roles="Admin">
             <Authorized>
                 <div class="menu-section-label">Administration Portal</div>
@@ -26,6 +27,21 @@
             </Authorized>
         </AuthorizeView>
 
+        @*Team Member Role Section *@
+        <AuthorizeView Roles="TeamMember">
+            <Authorized>
+                <div class="menu-section-label">Team Portal</div>
+                @foreach (var link in TeamLinks)
+                {
+                    <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
+                        <span class="@link.IconClass"></span>
+                        <span class="link-text">@link.Label</span>
+                    </NavLink>
+                }
+            </Authorized>
+        </AuthorizeView>
+
+        @*Auditor Role Section *@
         <AuthorizeView Roles="Auditor">
             <Authorized>
                 <div class="menu-section-label">Auditing Portal</div>
@@ -39,6 +55,7 @@
             </Authorized>
         </AuthorizeView>
 
+        @*Client Role Section *@
         <AuthorizeView Roles="Client">
             <Authorized>
                 <div class="menu-section-label">Client Portal</div>
@@ -110,8 +127,14 @@
         new NavItem { Label = "Overview",     Url = "admin/overview", IconClass = "bi bi-speedometer2" },
         new NavItem { Label = "Invite Users", Url = "admin/users",    IconClass = "bi bi-person-plus" },
         new NavItem { Label = "Projects",     Url = "admin/projects", IconClass = "bi bi-kanban" },
-        new NavItem { Label = "Reports",      Url = "admin/reports",  IconClass = "bi bi-file-earmark-bar-graph" },
+        new NavItem { Label = "Verify Tasks", Url = "admin/verify",   IconClass = "bi bi-check2-square" },
         new NavItem { Label = "Settings",     Url = "admin/settings", IconClass = "bi bi-gear" }
+    };
+
+    /* TEAM LINKS */
+    private List<NavItem> TeamLinks = new()
+    {
+        new NavItem { Label = "Kanban Board", Url = "team/kanban",    IconClass = "bi bi-layout-three-columns" }
     };
 
     /* CLIENT LINKS */
@@ -138,6 +161,7 @@
         if (user.IsInRole("Admin")) return "Administrator";
         if (user.IsInRole("Auditor")) return "Auditor";
         if (user.IsInRole("Client")) return "Client";
+        if (user.IsInRole("TeamMember")) return "Team Member";
         return "User";
     }
 }
