@@ -1,0 +1,213 @@
+﻿@page "/admin/settings"
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Components.Layout
+@*attribute [Authorize(Roles = "Admin")]*@
+@rendermode InteractiveServer
+
+<PageTitle>Settings | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header">
+        <div class="header-left">
+            <h1 class="page-title">System Settings</h1>
+            <p class="page-subtitle">Configure automation rules, notifications, and system preferences.</p>
+        </div>
+        <div class="header-right">
+            @* Why: Global Save Button *@
+            <button class="btn-primary-toro" @onclick="SaveChanges">
+                @if (isSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span> <span>Saving...</span>
+                }
+                else
+                {
+                    <span class="bi bi-save-fill me-2"></span> <span>Save Changes</span>
+                }
+            </button>
+        </div>
+    </header>
+
+    @* TABS NAVIGATION *@
+    <div class="settings-tabs">
+        <button class="tab-link @(ActiveTab == "General" ? "active" : "")" @onclick='() => ActiveTab = "General"'>
+            <span class="bi bi-sliders"></span> General
+        </button>
+        <button class="tab-link @(ActiveTab == "Automation" ? "active" : "")" @onclick='() => ActiveTab = "Automation"'>
+            <span class="bi bi-robot"></span> Automation
+        </button>
+        <button class="tab-link @(ActiveTab == "Compliance" ? "active" : "")" @onclick='() => ActiveTab = "Compliance"'>
+            <span class="bi bi-shield-lock"></span> Compliance
+        </button>
+    </div>
+
+    <div class="settings-content">
+        @if (ActiveTab == "General")
+        {
+            <div class="setting-section">
+                <h3 class="section-title">Application Defaults</h3>
+                <div class="setting-card">
+                    <div class="form-group mb-3">
+                        <label class="small-label">System Name</label>
+                        <input @bind="CurrentSettings.SystemName" class="form-control" />
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="small-label">Support Email</label>
+                        <input @bind="CurrentSettings.SupportEmail" class="form-control" />
+                        <small class="text-muted">Displayed to clients in the Help section.</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="small-label">Default Timezone</label>
+                            <select @bind="CurrentSettings.Timezone" class="form-select">
+                                <option>South Africa Standard Time (SAST)</option>
+                                <option>UTC</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (ActiveTab == "Automation")
+        {
+            <div class="setting-section">
+                <h3 class="section-title">Workflow Automation</h3>
+                <p class="section-desc">Control how the Kanban board and Projects interact automatically.</p>
+
+                <div class="setting-card">
+                    @* TOGGLE 1 *@
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-label">Auto-Switch Teams</span>
+                            <p class="toggle-desc">Automatically assign the next team when a Project Stage is marked complete.</p>
+                        </div>
+                        <label class="toro-switch">
+                            <input type="checkbox" @bind="CurrentSettings.AutoSwitchTeams">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    @* TOGGLE 2 *@
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-label">Auto-Archive Projects</span>
+                            <p class="toggle-desc">Mark project as "Completed" immediately after Stage 5 sign-off.</p>
+                        </div>
+                        <label class="toro-switch">
+                            <input type="checkbox" @bind="CurrentSettings.AutoArchive">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="divider"></div>
+
+                    @* TOGGLE 3 *@
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-label">Notify on Stage Change</span>
+                            <p class="toggle-desc">Send email to Client and Admin when a stage advances.</p>
+                        </div>
+                        <label class="toro-switch">
+                            <input type="checkbox" @bind="CurrentSettings.NotifyOnStageChange">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (ActiveTab == "Compliance")
+        {
+            <div class="setting-section">
+                <h3 class="section-title">Audit & Verification</h3>
+                
+                <div class="setting-card">
+                    @* TOGGLE 4 *@
+                    <div class="toggle-row">
+                        <div class="toggle-info">
+                            <span class="toggle-label">Enforce Proof of Work</span>
+                            <p class="toggle-desc">Require Team Members to attach a link or note before moving a task to "Done".</p>
+                        </div>
+                        <label class="toro-switch">
+                            <input type="checkbox" @bind="CurrentSettings.EnforceProof">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="form-group mt-3">
+                        <label class="small-label">Audit Log Retention (Days)</label>
+                        <input type="number" @bind="CurrentSettings.AuditRetentionDays" class="form-control" style="max-width: 150px;" />
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top">
+                        <button class="btn-outline-danger" @onclick="ClearCache">
+                            <span class="bi bi-trash3-fill me-2"></span> Clear System Cache
+                        </button>
+                        <p class="text-muted mt-2" style="font-size: 0.8rem;">Use only if data is not syncing correctly.</p>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    
+    @* SUCCESS TOAST SIMULATION *@
+    @if (showSuccessMessage)
+    {
+        <div class="save-toast">
+            <span class="bi bi-check-circle-fill"></span> Settings Saved Successfully!
+        </div>
+    }
+</div>
+
+@code {
+    private string ActiveTab = "General";
+    private bool isSaving = false;
+    private bool showSuccessMessage = false;
+
+    // Why: Renamed from 'Settings' to 'CurrentSettings' to avoid conflict with class name
+    private AppSettings CurrentSettings = new()
+    {
+        SystemName = "Toro Track",
+        SupportEmail = "support@toroinformatics.com",
+        Timezone = "South Africa Standard Time (SAST)",
+        AutoSwitchTeams = true,
+        AutoArchive = false,
+        NotifyOnStageChange = true,
+        EnforceProof = true,
+        AuditRetentionDays = 90
+    };
+
+    private async Task SaveChanges()
+    {
+        isSaving = true;
+        // Simulate DB delay
+        await Task.Delay(1000);
+        isSaving = false;
+        
+        // Show Toast
+        showSuccessMessage = true;
+        await Task.Delay(3000);
+        showSuccessMessage = false;
+    }
+
+    private void ClearCache()
+    {
+        // Logic to clear server memory cache would go here
+    }
+
+    public class AppSettings
+    {
+        public string SystemName { get; set; } = "";
+        public string SupportEmail { get; set; } = "";
+        public string Timezone { get; set; } = "";
+        public bool AutoSwitchTeams { get; set; }
+        public bool AutoArchive { get; set; }
+        public bool NotifyOnStageChange { get; set; }
+        public bool EnforceProof { get; set; }
+        public int AuditRetentionDays { get; set; }
+    }
+}
