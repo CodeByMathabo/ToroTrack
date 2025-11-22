@@ -1,0 +1,273 @@
+﻿@page "/admin/catalog"
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Components.Layout
+@using ToroTrack.Data
+@* attribute [Authorize(Roles = "Admin")] *@
+@rendermode InteractiveServer
+
+<PageTitle>Asset & Inventory | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header">
+        <div class="header-left">
+            <h1 class="page-title">Catalog & Inventory</h1>
+            <p class="page-subtitle">Manage product listings and track hardware stock levels.</p>
+        </div>
+        <div class="header-right">
+            <button class="btn-primary-toro" @onclick="OpenAddModal">
+                Add New Product
+            </button>
+        </div>
+    </header>
+
+    @* INVENTORY FILTERS (NEW) *@
+    <div class="filter-tabs mb-4">
+        <button class="tab-btn @(ActiveFilter == "All" ? "active" : "")" @onclick='() => ActiveFilter = "All"'>
+            All Products
+        </button>
+        <button class="tab-btn @(ActiveFilter == "LowStock" ? "active" : "")" @onclick='() => ActiveFilter = "LowStock"'>
+            <span class="bi bi-exclamation-triangle-fill text-warning me-1"></span> Low Stock
+        </button>
+        <button class="tab-btn @(ActiveFilter == "OutOfStock" ? "active" : "")" @onclick='() => ActiveFilter = "OutOfStock"'>
+            <span class="bi bi-x-circle-fill text-danger me-1"></span> Out of Stock
+        </button>
+    </div>
+
+    @* CATALOG TABLE *@
+    <div class="table-container">
+        <table class="toro-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%">Type</th>
+                    <th style="width: 25%">Product Name</th>
+                    <th style="width: 15%">Stock Level</th>
+                    <th style="width: 15%">Price</th>
+                    <th style="width: 15%">Status</th>
+                    <th style="width: 20%" class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in FilteredItems)
+                {
+                    <tr>
+                        <td>
+                            <span class="badge-type @item.Type.ToLower()">@item.Type</span>
+                        </td>
+                        <td class="fw-bold">
+                            @item.Name
+                            @if (item.Type == "Software")
+                            {
+                                <div class="text-muted small mt-1 fw-normal" style="font-size: 0.7rem;">
+                                    <span class="bi bi-clock-history"></span> @item.LicenseDurationDays Days
+                                </div>
+                            }
+                        </td>
+                        
+                        @* STOCK MANAGEMENT COLUMN *@
+                        <td>
+                            @if (item.Type == "Hardware")
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold">@item.StockQuantity</span>
+                                    @if (item.StockQuantity == 0)
+                                    {
+                                        <span class="badge-stock out">Out of Stock</span>
+                                    }
+                                    else if (item.StockQuantity < 5)
+                                    {
+                                        <span class="badge-stock low">Low Stock</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge-stock good">In Stock</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">(Digital)</span>
+                            }
+                        </td>
+
+                        <td>R @item.Price.ToString("N0")</td>
+                        
+                        <td>
+                            @if (item.StockQuantity > 0 || item.Type == "Software")
+                            {
+                                <span class="status-dot active"></span> <span class="small">Active</span>
+                            }
+                            else
+                            {
+                                <span class="status-dot inactive"></span> <span class="small text-muted">Unavailable</span>
+                            }
+                        </td>
+
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn-action-edit" @onclick="() => EditItem(item)">
+                                    Edit
+                                </button>
+                                <button class="btn-action-delete" @onclick="() => DeleteItem(item)">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        
+        @if (!FilteredItems.Any())
+        {
+            <div class="text-center py-5 text-muted">
+                <span class="bi bi-box-seam display-4 d-block mb-3 opacity-50"></span>
+                <p>No items found in this category.</p>
+            </div>
+        }
+    </div>
+</div>
+
+@* ADD/EDIT MODAL *@
+<ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
+    <EditForm Model="CurrentItem" OnValidSubmit="SaveItem">
+        <DataAnnotationsValidator />
+        
+        <div class="form-group mb-3">
+            <label class="small-label">Item Type</label>
+            <InputSelect @bind-Value="CurrentItem.Type" class="form-select toro-input">
+                <option value="Hardware">Hardware</option>
+                <option value="Software">Software</option>
+            </InputSelect>
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="small-label">Product Name</label>
+            <InputText @bind-Value="CurrentItem.Name" class="form-control toro-input" placeholder="e.g. Dell Latitude 5420" />
+            <ValidationMessage For="@(() => CurrentItem.Name)" class="text-danger" />
+        </div>
+
+        @if (CurrentItem.Type == "Hardware")
+        {
+            <div class="form-group mb-3 animate-fade-in">
+                <label class="small-label">Stock Quantity</label>
+                <InputNumber @bind-Value="CurrentItem.StockQuantity" class="form-control toro-input" placeholder="0" />
+                <small class="text-muted" style="font-size: 0.7rem;">
+                    <span class="bi bi-info-circle"></span> Items with 0 stock will be hidden from clients.
+                </small>
+            </div>
+        }
+        else if (CurrentItem.Type == "Software")
+        {
+            <div class="form-group mb-3 animate-fade-in">
+                <label class="small-label">License Duration (Days)</label>
+                <InputNumber @bind-Value="CurrentItem.LicenseDurationDays" class="form-control toro-input" placeholder="e.g. 365" />
+            </div>
+        }
+
+        <div class="form-group mb-3">
+            <label class="small-label">Price (ZAR)</label>
+            <InputNumber @bind-Value="CurrentItem.Price" class="form-control toro-input" />
+            <ValidationMessage For="@(() => CurrentItem.Price)" class="text-danger" />
+        </div>
+
+        <div class="form-group mb-4">
+            <label class="small-label">Description</label>
+            <InputTextArea @bind-Value="CurrentItem.Description" class="form-control toro-input" rows="3" placeholder="Description..." />
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn-secondary-toro" @onclick="() => isModalVisible = false">Cancel</button>
+            <button type="submit" class="btn-primary-toro">Save Product</button>
+        </div>
+    </EditForm>
+</ToroModal>
+
+@code {
+    private bool isModalVisible = false;
+    private string modalTitle = "Add Catalog Item";
+    private string ActiveFilter = "All"; // Default Filter
+    
+    public class UiAssetCatalogItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Type { get; set; } = "Hardware"; 
+        public decimal Price { get; set; }
+        public string Description { get; set; } = "";
+        public int LicenseDurationDays { get; set; } = 0; 
+        public int StockQuantity { get; set; } = 0; 
+    }
+
+    private UiAssetCatalogItem CurrentItem = new();
+    private List<UiAssetCatalogItem> CatalogItems = new();
+
+    // Dynamic Filtering Logic
+    private IEnumerable<UiAssetCatalogItem> FilteredItems => ActiveFilter switch
+    {
+        "LowStock" => CatalogItems.Where(i => i.Type == "Hardware" && i.StockQuantity < 5 && i.StockQuantity > 0),
+        "OutOfStock" => CatalogItems.Where(i => i.Type == "Hardware" && i.StockQuantity == 0),
+        _ => CatalogItems
+    };
+
+    protected override void OnInitialized()
+    {
+        CatalogItems = new List<UiAssetCatalogItem>
+        {
+            new UiAssetCatalogItem { Id = 2, Name = "Dell Latitude 5420", Type = "Hardware", Price = 24000, Description = "Standard business laptop.", StockQuantity = 45 },
+            new UiAssetCatalogItem { Id = 3, Name = "27\" 4K Monitor", Type = "Hardware", Price = 6500, Description = "High-res display.", StockQuantity = 3 }, // Low Stock
+            new UiAssetCatalogItem { Id = 5, Name = "Logitech MX Keys", Type = "Hardware", Price = 2200, Description = "Wireless keyboard.", StockQuantity = 0 }, // Out of Stock
+            new UiAssetCatalogItem { Id = 1, Name = "Microsoft 365 E5", Type = "Software", Price = 650, Description = "Productivity suite.", LicenseDurationDays = 365 },
+        };
+    }
+
+    private void OpenAddModal()
+    {
+        CurrentItem = new UiAssetCatalogItem { Type = "Hardware" };
+        modalTitle = "Add New Product";
+        isModalVisible = true;
+    }
+
+    private void EditItem(UiAssetCatalogItem item)
+    {
+        CurrentItem = new UiAssetCatalogItem 
+        { 
+            Id = item.Id, 
+            Name = item.Name, 
+            Type = item.Type, 
+            Price = item.Price, 
+            Description = item.Description,
+            LicenseDurationDays = item.LicenseDurationDays,
+            StockQuantity = item.StockQuantity
+        };
+        modalTitle = "Edit Product";
+        isModalVisible = true;
+    }
+
+    private void SaveItem()
+    {
+        if (CurrentItem.Id == 0)
+        {
+            CurrentItem.Id = CatalogItems.Max(c => c.Id) + 1;
+            CatalogItems.Add(CurrentItem);
+        }
+        else
+        {
+            var existing = CatalogItems.FirstOrDefault(c => c.Id == CurrentItem.Id);
+            if (existing != null)
+            {
+                existing.Name = CurrentItem.Name;
+                existing.Type = CurrentItem.Type;
+                existing.Price = CurrentItem.Price;
+                existing.Description = CurrentItem.Description;
+                existing.LicenseDurationDays = CurrentItem.LicenseDurationDays;
+                existing.StockQuantity = CurrentItem.StockQuantity;
+            }
+        }
+        isModalVisible = false;
+    }
+
+    private void DeleteItem(UiAssetCatalogItem item)
+    {
+        CatalogItems.Remove(item);
+    }
+}

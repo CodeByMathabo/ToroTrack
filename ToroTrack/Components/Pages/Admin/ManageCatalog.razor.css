@@ -1,0 +1,256 @@
+﻿/* LAYOUT */
+.page-shell {
+    padding: 1rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* HEADER */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #283618;
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    margin: 0;
+}
+
+/* FILTER TABS (New Feature) */
+.filter-tabs {
+    display: flex;
+    gap: 12px;
+}
+
+.tab-btn {
+    background: transparent;
+    border: 1px solid #283618;
+    color: #666;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+    .tab-btn:hover {
+        background-color: rgba(40, 54, 24, 0.05);
+    }
+
+    .tab-btn.active {
+        background-color: #283618;
+        color: #fefae0;
+        border-color: #283618;
+    }
+
+/* TABLE STYLES */
+.table-container {
+    background-color: #a3b18a;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.toro-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+    .toro-table thead {
+        background-color: #e9edc9;
+    }
+
+    .toro-table th {
+        padding: 1.2rem 1rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: #283618;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-align: left;
+    }
+
+    .toro-table td {
+        padding: 1rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #eee;
+        color: #333;
+        background-color: white;
+    }
+
+/* BADGES */
+.badge-type {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: inline-block;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+    .badge-type.software {
+        background-color: #e7f1ff;
+        color: #0d6efd;
+        border-color: #b6d4fe;
+    }
+
+    .badge-type.hardware {
+        background-color: #fff3cd;
+        color: #856404;
+        border-color: #ffecb5;
+    }
+
+/* STOCK BADGES */
+.badge-stock {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+    .badge-stock.good {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .badge-stock.low {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .badge-stock.out {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+
+/* STATUS DOTS */
+.status-dot {
+    height: 8px;
+    width: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+}
+
+    .status-dot.active {
+        background-color: #198754;
+    }
+
+    .status-dot.inactive {
+        background-color: #adb5bd;
+    }
+
+/* BUTTONS (Solid & Visible) */
+.btn-action-edit {
+    background-color: white;
+    border: 1px solid #283618;
+    color: #283618;
+    padding: 8px 16px;
+    min-width: 80px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+    .btn-action-edit:hover {
+        background-color: #283618;
+        color: #fefae0;
+    }
+
+.btn-action-delete {
+    background-color: white;
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    padding: 8px 16px;
+    min-width: 80px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+    .btn-action-delete:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+
+/* MODAL STYLES */
+.small-label {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #666;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.toro-input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(40, 54, 24, 0.3);
+    background-color: #dad7cd;
+    color: #283618;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.2s;
+    font-size: 0.95rem;
+}
+
+    .toro-input:focus {
+        box-shadow: 0 0 0 2px rgba(40, 54, 24, 0.1);
+        border-color: #283618;
+        background-color: #fff;
+    }
+
+.btn-secondary-toro {
+    background: transparent;
+    border: 1px solid #666;
+    color: #666;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+    .btn-secondary-toro:hover {
+        background-color: #f8f9fa;
+    }
+
+/* ANIMATION */
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

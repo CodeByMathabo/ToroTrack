@@ -1,0 +1,201 @@
+﻿@page "/client/order-assets"
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Components.Layout
+@* attribute [Authorize(Roles = "Client")] *@
+@rendermode InteractiveServer
+
+<PageTitle>Order Assets | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header">
+        <div class="header-left">
+            <h1 class="page-title">Order Assets</h1>
+            <p class="page-subtitle">Request new hardware and software licenses for your team.</p>
+        </div>
+        <div class="header-right">
+            <div class="cart-summary" @onclick="OpenCartModal">
+                <span class="bi bi-cart3 cart-icon"></span>
+                <span class="cart-count">@Cart.Count</span>
+                <span class="cart-total">R @Cart.Sum(i => i.Price).ToString("N0")</span>
+            </div>
+        </div>
+    </header>
+
+    @* CATEGORY TABS *@
+    <div class="category-tabs">
+        <button class="tab-btn @(ActiveCategory == "All" ? "active" : "")" @onclick='() => ActiveCategory = "All"'>All</button>
+        <button class="tab-btn @(ActiveCategory == "Hardware" ? "active" : "")" @onclick='() => ActiveCategory = "Hardware"'>Hardware</button>
+        <button class="tab-btn @(ActiveCategory == "Software" ? "active" : "")" @onclick='() => ActiveCategory = "Software"'>Software</button>
+    </div>
+
+    @* ASSET CATALOG GRID *@
+    <div class="catalog-grid">
+        @foreach (var item in FilteredCatalog)
+        {
+            <div class="asset-card @(item.StockQuantity == 0 && item.Type == "Hardware" ? "out-of-stock" : "")">
+                @* COLORED HEADER *@
+                <div class="card-type-header @item.Type.ToLower()">
+                    <span>@item.Type</span>
+                </div>
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h3 class="asset-title">@item.Name</h3>
+                        <span class="price-tag">R @item.Price.ToString("N0")</span>
+                    </div>
+
+                    @* STOCK INDICATOR *@
+                    <div class="mb-2">
+                        @if (item.Type == "Hardware")
+                        {
+                            @if (item.StockQuantity == 0)
+                            {
+                                <span class="stock-badge out">Out of Stock</span>
+                            }
+                            else if (item.StockQuantity < 5)
+                            {
+                                <span class="stock-badge low">Only @item.StockQuantity left!</span>
+                            }
+                            else
+                            {
+                                <span class="stock-badge good">In Stock</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="stock-badge digital">Digital License</span>
+                        }
+                    </div>
+
+                    <p class="asset-desc">@item.Description</p>
+
+                    @* SMART ACTION BUTTON *@
+                    @if (item.Type == "Hardware" && item.StockQuantity == 0)
+                    {
+                        <button class="btn-add-solid disabled" disabled>
+                            Unavailable
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn-add-solid" @onclick="() => AddToCart(item)">
+                            Add to Order
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@* CHECKOUT MODAL *@
+<ToroModal @bind-IsVisible="isCartVisible" Title="Confirm Order">
+    <div class="cart-modal-content">
+        @if (Cart.Any())
+        {
+            <table class="toro-table mb-4">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Cart)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-bold">@item.Name</div>
+                                <small class="text-muted">@item.Type</small>
+                            </td>
+                            <td class="text-end">R @item.Price.ToString("N0")</td>
+                            <td class="text-center">
+                                <button class="btn-remove-solid" @onclick="() => RemoveFromCart(item)">
+                                    Remove
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                    <tr class="total-row">
+                        <td class="fw-bold text-end">TOTAL</td>
+                        <td class="fw-bold text-end">R @Cart.Sum(i => i.Price).ToString("N0")</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-info small mb-3">
+                <span class="bi bi-info-circle-fill me-2"></span>
+                <strong>Note:</strong> Placing this order will automatically create "Pending" records in the License Registry for Auditor verification.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn-secondary-toro" @onclick="() => isCartVisible = false">Keep Shopping</button>
+                <button class="btn-primary-toro" @onclick="PlaceOrder">
+                    Confirm Order
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5 text-muted">
+                <p class="mb-3">Your cart is empty.</p>
+                <button class="btn-primary-toro mt-3" @onclick="() => isCartVisible = false">Browse Catalog</button>
+            </div>
+        }
+    </div>
+</ToroModal>
+
+@code {
+    private string ActiveCategory = "All";
+    private bool isCartVisible = false;
+    private List<CatalogItem> Cart = new();
+
+    // Mock Catalog with STOCK LEVELS
+    private List<CatalogItem> Catalog = new()
+    {
+        new CatalogItem { Id = 1, Name = "Microsoft 365 E5", Type = "Software", Price = 650, Description = "Full suite productivity apps + advanced security.", StockQuantity = 999 },
+        new CatalogItem { Id = 2, Name = "Dell Latitude 5420", Type = "Hardware", Price = 24000, Description = "Standard business laptop, i5, 16GB RAM.", StockQuantity = 15 }, // Plenty
+        new CatalogItem { Id = 4, Name = "27\" 4K Monitor", Type = "Hardware", Price = 6500, Description = "High-resolution display for design and productivity.", StockQuantity = 2 }, // Low Stock
+        new CatalogItem { Id = 6, Name = "Logitech MX Keys", Type = "Hardware", Price = 2200, Description = "Premium wireless illuminated keyboard.", StockQuantity = 0 }, // OUT OF STOCK
+        new CatalogItem { Id = 3, Name = "ESET Endpoint Security", Type = "Software", Price = 120, Description = "Comprehensive antivirus protection.", StockQuantity = 999 }
+    };
+
+    private IEnumerable<CatalogItem> FilteredCatalog =>
+        ActiveCategory == "All" ? Catalog : Catalog.Where(i => i.Type == ActiveCategory);
+
+    private void AddToCart(CatalogItem item)
+    {
+        // Double check stock just in case
+        if (item.Type == "Hardware" && item.StockQuantity <= 0) return;
+        Cart.Add(item);
+    }
+
+    private void RemoveFromCart(CatalogItem item)
+    {
+        Cart.Remove(item);
+    }
+
+    private void OpenCartModal()
+    {
+        isCartVisible = true;
+    }
+
+    private async Task PlaceOrder()
+    {
+        await Task.Delay(1000);
+        Cart.Clear();
+        isCartVisible = false;
+    }
+
+    public class CatalogItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Type { get; set; } = "";
+        public decimal Price { get; set; }
+        public string Description { get; set; } = "";
+        public int StockQuantity { get; set; } // NEW
+    }
+}

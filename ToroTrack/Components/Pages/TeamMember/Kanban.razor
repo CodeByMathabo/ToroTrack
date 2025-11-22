@@ -15,409 +15,396 @@
 
         <div class="header-center">
             <div class="search-wrapper">
-                <select class="project-select" @onchange="OnProjectSelected">
-                    <option value="">-- Select an Active Project --</option>
-                    @foreach (var proj in ActiveProjects)
+                @* UPDATED: Iterates over VisibleProjects only *@
+                <select class="project-select" @onchange="OnProjectSelected" value="@(SelectedProjectId?.ToString() ?? "")">
+                    <option value="">
+                        @if (VisibleProjects.Any())
+                        {
+                            <text>-- Select Active Project --</text>
+                        }
+                        else
+                        {
+
+                            <text>-- No Active Projects --</text>
+                        }
+                    </option>
+                    @foreach (var proj in VisibleProjects)
                     {
-                        <option value="@proj.Id">@proj.ClientName (@proj.CurrentStageName)</option>
+                        <option value="@proj.Id">@proj.ClientName - @proj.ProjectName</option>
                     }
                 </select>
             </div>
         </div>
 
         <div class="header-right">
-            @if (SelectedProject != null)
-            {
-                <div class="stage-indicator">
-                    <span class="stage-label">Current Stage:</span>
-                    <span class="stage-value">@SelectedProject.CurrentStageName</span>
-                </div>
-            }
+            <div class="stage-indicator">
+                <span class="stage-label">View:</span>
+                <span class="stage-value">@CurrentTeamFilter</span>
+            </div>
         </div>
     </header>
 
-    @if (SelectedProject == null)
-    {
-        <div class="empty-state-container">
-            <div class="empty-content">
-                <span class="bi bi-kanban display-1 text-muted mb-3"></span>
-                <h3>Select a Project</h3>
-                <p>Choose an active project from the dropdown above to view its Kanban board.</p>
+    @* TEAM FILTERS *@
+    <div class="team-filter-bar">
+        @* I kept 'All' for Admin testing, but in real life this would be hidden for normal users *@
+        <button class="tab-btn @(CurrentTeamFilter == "All" ? "active" : "")" @onclick='() => FilterByTeam("All")'>All Teams</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Logistics & Procurement" ? "active" : "")" @onclick='() => FilterByTeam("Logistics & Procurement")'>Logistics</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Infrastructure" ? "active" : "")" @onclick='() => FilterByTeam("Infrastructure")'>Infrastructure</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Network & Security" ? "active" : "")" @onclick='() => FilterByTeam("Network & Security")'>Network & Sec</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Cloud Migration" ? "active" : "")" @onclick='() => FilterByTeam("Cloud Migration")'>Cloud</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Modern Workplace" ? "active" : "")" @onclick='() => FilterByTeam("Modern Workplace")'>Modern Work</button>
+    </div>
+
+    <div class="kanban-board">
+
+        @* COLUMN 1: BACKLOG *@
+        <div class="kanban-column">
+            <div class="column-header">
+                <span>Backlog</span>
+                <span class="count-badge">@FilteredTasks.Count(t => t.Status == "Backlog")</span>
+            </div>
+            <div class="column-body">
+                @foreach (var task in FilteredTasks.Where(t => t.Status == "Backlog"))
+                {
+                    <div class="kanban-card">
+                        @RenderCardContent(task)
+                        <div class="card-actions">
+                            <button class="btn-move" @onclick='() => MoveTask(task, "Doing")'>
+                                Start <span class="bi bi-arrow-right-short"></span>
+                            </button>
+                        </div>
+                    </div>
+                }
             </div>
         </div>
-    }
-    else
-    {
-        <div class="automation-bar">
-            <div class="team-info">
-                <span class="bi bi-people-fill me-2"></span>
-                <strong>Assigned Team:</strong> @SelectedProject.AssignedTeam
+
+        @* COLUMN 2: DOING *@
+        <div class="kanban-column">
+            <div class="column-header">
+                <span>In Progress</span>
+                <span class="count-badge">@FilteredTasks.Count(t => t.Status == "Doing")</span>
             </div>
-            <div class="stage-progress">
-                <span>Stage Progress: @GetStageProgress()%</span>
-                <div class="progress-track">
-                    <div class="progress-fill" style="width: @GetStageProgress()%"></div>
-                </div>
+            <div class="column-body">
+                @foreach (var task in FilteredTasks.Where(t => t.Status == "Doing"))
+                {
+                    <div class="kanban-card doing-card">
+                        @RenderCardContent(task)
+                        <div class="card-actions">
+                            <button class="btn-move-back" @onclick='() => MoveTask(task, "Backlog")'>
+                                <span class="bi bi-arrow-left-short"></span>
+                            </button>
+                            @* Opens Context-Aware Modal *@
+                            <button class="btn-move" @onclick='() => InitiateCompleteTask(task)'>
+                                Done <span class="bi bi-arrow-right-short"></span>
+                            </button>
+                        </div>
+                    </div>
+                }
             </div>
         </div>
 
-        <div class="kanban-board">
-
-            @* COLUMN 1: BACKLOG *@
-            <div class="kanban-column">
-                <div class="column-header">
-                    <span>Backlog</span>
-                    <span class="count-badge">@Tasks.Count(t => t.Status == "Backlog")</span>
-                </div>
-
-                <div class="column-body">
-                    @foreach (var task in Tasks.Where(t => t.Status == "Backlog"))
-                    {
-                        <div class="kanban-card">
-                            @RenderCardContent(task)
-                            <div class="card-actions">
-                                <button class="btn-move" @onclick='() => MoveTask(task, "Doing")'>
-                                    Start <span class="bi bi-arrow-right-short"></span>
-                                </button>
-                            </div>
-                        </div>
-                    }
-                </div>
-
-                <div class="column-footer">
-                    @if (isAddingTask)
-                    {
-                        <div class="new-task-form">
-                            <div class="form-group mb-1">
-                                <input @bind="NewTaskModel.Title" class="form-control task-input-compact fw-bold" placeholder="Task Title" />
-                            </div>
-                            <div class="form-group mb-1">
-                                <textarea @bind="NewTaskModel.Description" class="form-control task-input-compact" placeholder="Desc (Optional)" style="height: 2.5rem; resize: none;"></textarea>
-                            </div>
-
-                            <div class="row g-1 mb-2 align-items-center">
-                                <div class="col-6">
-                                    <select @bind="NewTaskModel.Priority" class="form-select task-input-compact">
-                                        <option value="Low">Low Priority</option>
-                                        <option value="Medium">Medium</option>
-                                        <option value="High">High Priority</option>
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text p-0 px-1" style="font-size: 0.7rem;">Due</span>
-                                        <input type="date" @bind="NewTaskModel.DueDate" class="form-control task-input-compact" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="d-flex gap-2 pt-1">
-                                <button class="btn-save-task" @onclick="AddTask">Add Task</button>
-                                <button class="btn-cancel-task" @onclick="CancelAddTask">Cancel</button>
-                            </div>
-                        </div>
-                    }
-                    else
-                    {
-                        <button class="btn-add-trigger" @onclick="() => isAddingTask = true">
-                            <span class="bi bi-plus-circle-fill me-2"></span> Add New Task
-                        </button>
-                    }
-                </div>
+        @* COLUMN 3: DONE *@
+        <div class="kanban-column">
+            <div class="column-header">
+                <span>Done / Review</span>
+                <span class="count-badge">@FilteredTasks.Count(t => t.Status == "PendingReview" || t.Status == "Verified")</span>
             </div>
+            <div class="column-body">
+                @foreach (var task in FilteredTasks.Where(t => t.Status == "PendingReview" || t.Status == "Verified"))
+                {
+                    <div class="kanban-card done-card">
+                        <div class="card-content">
+                            <p class="task-title text-decoration-line-through text-muted">
+                                @if (task.Status == "Verified")
+                                {
+                                    <span class="bi bi-check-circle-fill text-success me-2"></span>
+                                }
+                                else
+                                {
 
-            @* COLUMN 2: DOING *@
-            <div class="kanban-column">
-                <div class="column-header">
-                    <span>In Progress</span>
-                    <span class="count-badge">@Tasks.Count(t => t.Status == "Doing")</span>
-                </div>
-                <div class="column-body">
-                    @foreach (var task in Tasks.Where(t => t.Status == "Doing"))
-                    {
-                        <div class="kanban-card doing-card">
-                            @RenderCardContent(task)
-                            <div class="card-actions">
-                                <button class="btn-move-back" @onclick='() => MoveTask(task, "Backlog")'>
-                                    <span class="bi bi-arrow-left-short"></span>
-                                </button>
-                                @* Opens Proof Modal *@
-                                <button class="btn-move" @onclick='() => InitiateCompleteTask(task)'>
-                                    Done <span class="bi bi-arrow-right-short"></span>
-                                </button>
-                            </div>
-                        </div>
-                    }
-                </div>
-                <div class="column-footer empty"></div>
-            </div>
+                                    <span class="bi bi-hourglass-split text-warning me-2"></span>
+                                }
+                                @task.Title
+                            </p>
 
-            @* COLUMN 3: DONE (Verified & Pending) *@
-            <div class="kanban-column">
-                <div class="column-header">
-                    <span>Done</span>
-                    @* Why: Count both Pending and Verified *@
-                    <span class="count-badge">@Tasks.Count(t => t.Status == "PendingReview" || t.Status == "Verified")</span>
-                </div>
-                <div class="column-body">
-                    @foreach (var task in Tasks.Where(t => t.Status == "PendingReview" || t.Status == "Verified"))
-                    {
-                        <div class="kanban-card done-card">
-                            <div class="card-content">
-                                <p class="task-title text-decoration-line-through text-muted">
-                                    @if (task.Status == "Verified")
-                                    {
-                                        <span class="bi bi-check-circle-fill text-success me-2"></span>
-                                    }
-                                    else
-                                    {
-                                        <span class="bi bi-hourglass-split text-warning me-2"></span>
-                                    }
-                                    @task.Title
-                                </p>
-
-                                @* STATUS INDICATORS *@
+                            <div class="d-flex justify-content-between align-items-center mt-2">
                                 @if (task.Status == "PendingReview")
                                 {
-                                    <div class="mt-2">
-                                        <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">
-                                            <span class="bi bi-clock"></span> Pending Admin Review
-                                        </span>
-                                    </div>
+                                    <span class="badge bg-warning text-dark">Pending Review</span>
                                 }
-                                else if (task.Status == "Verified")
+                                else
                                 {
-                                    <div class="mt-2">
-                                        <span class="badge bg-success" style="font-size: 0.7rem;">
-                                            <span class="bi bi-shield-check"></span> Verified
-                                        </span>
-                                    </div>
+                                    <span class="badge bg-success">Verified</span>
                                 }
-
-                                @* Proof Link Indicator *@
-                                @if (!string.IsNullOrEmpty(task.ProofLink) || !string.IsNullOrEmpty(task.ProofFileName))
-                                {
-                                    <div class="mt-1" style="font-size: 0.7rem; color: #283618; opacity: 0.8;">
-                                        <span class="bi bi-paperclip"></span> Evidence Attached
-                                    </div>
-                                }
+                                <span class="team-tag-mini">@GetTeamShortCode(task.AssignedTeam)</span>
                             </div>
 
-                            @* ONLY allow Undo if NOT Verified *@
-                            @if (task.Status == "PendingReview")
+                            @if (!string.IsNullOrEmpty(task.ProofFileName))
                             {
-                                <div class="card-actions">
-                                    <button class="btn-move-back" @onclick='() => MoveTask(task, "Doing")'>
-                                        <span class="bi bi-arrow-left-short"></span> Undo
-                                    </button>
-                                </div>
+                                <div class="mt-1 small text-muted"><span class="bi bi-paperclip"></span> @task.ProofFileName</div>
                             }
                         </div>
-                    }
-                </div>
-                <div class="column-footer empty"></div>
+                    </div>
+                }
             </div>
-
         </div>
-    }
+    </div>
 </div>
 
-@* PROOF OF WORK MODAL *@
+@* 1. GENERIC PROOF MODAL *@
 <ToroModal @bind-IsVisible="isProofModalVisible" Title="Submit Proof">
-    <div class="new-task-form" style="box-shadow: none; border: none; padding: 0;">
-        <p class="mb-3 text-muted" style="font-size: 0.9rem;">Please provide evidence for <strong>@TaskToComplete?.Title</strong>.</p>
+    <div class="new-task-form border-0 shadow-none p-0">
+        <p class="text-muted mb-3 small">Upload screenshots, logs, or provide a link for <strong>@TaskToComplete?.Title</strong>.</p>
 
         <div class="form-group mb-2">
-            <label class="small-label text-muted fw-bold" style="font-size: 0.7rem;">Proof Link (URL)</label>
+            <label class="small-label">Proof Link (Optional)</label>
             <input @bind="ProofModel.Link" class="form-control task-input-compact" placeholder="https://..." />
         </div>
 
-        <div class="form-group mb-2">
-            <label class="small-label text-muted fw-bold" style="font-size: 0.7rem;">Or Attach File (PDF/CSV)</label>
-            <InputFile OnChange="HandleFileSelected" class="form-control task-input-compact" accept=".pdf, .csv" />
+        <div class="form-group mb-3">
+            <label class="small-label">Or Upload File (Screenshot/Log)</label>
+            <InputFile OnChange="HandleFileSelected" class="form-control task-input-compact" />
             @if (!string.IsNullOrEmpty(ProofModel.FileName))
             {
-                <div class="text-success small mt-1">
-                    <span class="bi bi-file-earmark-check"></span> @ProofModel.FileName selected
-                </div>
+                <div class="text-success small mt-1"><span class="bi bi-check2"></span> @ProofModel.FileName attached</div>
             }
         </div>
 
         <div class="form-group mb-3">
-            <label class="small-label text-muted fw-bold" style="font-size: 0.7rem;">Completion Notes</label>
-            <textarea @bind="ProofModel.Notes" class="form-control task-input-compact" rows="3" placeholder="Describe the outcome..."></textarea>
+            <label class="small-label">Completion Notes</label>
+            <textarea @bind="ProofModel.Notes" class="form-control task-input-compact" rows="3"></textarea>
         </div>
 
-        <div class="d-flex gap-2">
-            <button class="btn-save-task" @onclick="FinalizeCompleteTask">Submit & Complete</button>
+        <div class="d-flex justify-content-end gap-2">
             <button class="btn-cancel-task" @onclick="() => isProofModalVisible = false">Cancel</button>
+            <button class="btn-save-task" @onclick="FinalizeCompleteTask">Submit & Complete</button>
+        </div>
+    </div>
+</ToroModal>
+
+@* 2. ASSET REGISTRATION MODAL *@
+<ToroModal @bind-IsVisible="isAssetModalVisible" Title="Register Deployed Assets">
+    <div class="asset-form-container">
+        <p class="text-muted mb-3 small">
+            Completing delivery for <strong>@TaskToComplete?.Title</strong>.
+            <br />Scan serial numbers from the boxes or type manually.
+        </p>
+
+        <div class="scrolling-list mb-3">
+            <table class="table table-sm table-bordered bg-white mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th style="width: 25%">Type</th>
+                        <th style="width: 30%">Model</th>
+                        <th style="width: 35%">Serial Number</th>
+                        <th style="width: 10%"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var asset in NewAssets)
+                    {
+                        <tr>
+                            <td>
+                                <select @bind="asset.Type" class="form-select form-select-sm border-0">
+                                    <option>Laptop</option>
+                                    <option>Monitor</option>
+                                    <option>Docking Station</option>
+                                    <option>Peripherals</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input @bind="asset.Model" class="form-control form-control-sm border-0" placeholder="e.g. Dell Latitude" />
+                            </td>
+                            <td>
+                                <input @bind="asset.SerialNumber" class="form-control form-control-sm fw-bold text-primary border-0" placeholder="Scan here..." />
+                            </td>
+                            <td class="text-center align-middle">
+                                <button class="btn btn-sm text-danger p-0" @onclick="() => RemoveAssetRow(asset)" title="Remove Device">
+                                    <span class="bi bi-trash3-fill"></span>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <button class="btn-outline-toro-sm w-100 rounded-0 border-top-0" @onclick="AddAssetRow">
+                <span class="bi bi-plus-circle"></span> Add Another Device
+            </button>
+        </div>
+
+        <div class="form-group mb-3 border-top pt-3">
+            <label class="small-label text-danger">Upload Signed Delivery Note (POD) *</label>
+            <InputFile OnChange="HandleFileSelected" class="form-control task-input-compact" accept=".pdf,.jpg,.png" />
+            <small class="text-muted">Auditor will verify this against serial numbers.</small>
+            @if (!string.IsNullOrEmpty(ProofModel.FileName))
+            {
+                <div class="text-success small mt-1"><span class="bi bi-check2"></span> @ProofModel.FileName attached</div>
+            }
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            <button class="btn-cancel-task" @onclick="() => isAssetModalVisible = false">Cancel</button>
+            <button class="btn-save-task" @onclick="SubmitAssetsAndComplete">Register & Complete</button>
         </div>
     </div>
 </ToroModal>
 
 @code {
-    // ... [RenderCardContent same as before] ...
-    private RenderFragment RenderCardContent(KanbanTask task) => __builder =>
-    {
-        <div class="card-content">
-            <div class="d-flex justify-content-between align-items-start mb-1">
-                <span class="badge-priority @task.Priority.ToLower()">@task.Priority</span>
-                @if (task.DueDate.HasValue)
-                {
-                    var isOverdue = task.DueDate.Value < DateTime.Now.Date && task.Status != "Verified";
-                    <small class="@(isOverdue ? "text-danger fw-bold" : "text-muted")" style="font-size: 0.75rem;">
-                        <span class="bi bi-calendar-event"></span> @task.DueDate.Value.ToString("MMM dd")
-                    </small>
-                }
-            </div>
-            <p class="task-title">@task.Title</p>
-            @if (!string.IsNullOrEmpty(task.Description))
-            {
-                <p class="task-desc">@task.Description</p>
-            }
-        </div>
-    };
-
-    // ... [Models] ...
-    public class KanbanProject
-    {
-        public int Id { get; set; }
-        public string ClientName { get; set; } = "";
-        public string CurrentStageName { get; set; } = "";
-        public string AssignedTeam { get; set; } = "";
-    }
+    public class KanbanProject { public int Id { get; set; } public string ClientName { get; set; } = ""; public string ProjectName { get; set; } = ""; }
 
     public class KanbanTask
     {
         public int Id { get; set; }
+        public int ProjectId { get; set; }
         public string Title { get; set; } = "";
         public string Description { get; set; } = "";
         public string Priority { get; set; } = "Medium";
         public DateTime? DueDate { get; set; }
-        // Statuses: Backlog, Doing, PendingReview, Verified
         public string Status { get; set; } = "Backlog";
-        public string ProofLink { get; set; } = "";
-        public string ProofNotes { get; set; } = "";
+        public string AssignedTeam { get; set; } = "Infrastructure";
         public string ProofFileName { get; set; } = "";
     }
 
-    public class ProofOfWork
-    {
-        public string Link { get; set; } = "";
-        public string Notes { get; set; } = "";
-        public string FileName { get; set; } = "";
-    }
+    public class NewAssetModel { public string Type { get; set; } = "Laptop"; public string Model { get; set; } = ""; public string SerialNumber { get; set; } = ""; }
+    public class ProofOfWork { public string Link { get; set; } = ""; public string Notes { get; set; } = ""; public string FileName { get; set; } = ""; }
 
-    private List<KanbanProject> ActiveProjects = new();
-    private KanbanProject? SelectedProject;
+    // State
+    private List<KanbanProject> AllProjects = new(); // Source of Truth
+    private List<KanbanProject> VisibleProjects = new(); // Filtered for Dropdown
     private List<KanbanTask> Tasks = new();
+    private string CurrentTeamFilter = "Logistics & Procurement"; // Simulate Login
+    private int? SelectedProjectId = null;
 
-    private bool isAddingTask = false;
-    private KanbanTask NewTaskModel = new() { DueDate = DateTime.Now.AddDays(1) };
     private bool isProofModalVisible = false;
+    private bool isAssetModalVisible = false;
     private KanbanTask? TaskToComplete;
     private ProofOfWork ProofModel = new();
+    private List<NewAssetModel> NewAssets = new();
+
+    // FILTER LOGIC
+    private IEnumerable<KanbanTask> FilteredTasks => Tasks
+        .Where(t => CurrentTeamFilter == "All" || t.AssignedTeam == CurrentTeamFilter)
+        .Where(t => SelectedProjectId == null || t.ProjectId == SelectedProjectId);
 
     protected override void OnInitialized()
     {
-        ActiveProjects = new List<KanbanProject>
+        AllProjects = new List<KanbanProject>
         {
-            new KanbanProject { Id = 1, ClientName = "Law Firm Z", CurrentStageName = "Stage 2: Network Hardening", AssignedTeam = "Network & Security Team" },
-            new KanbanProject { Id = 2, ClientName = "Retail Corp", CurrentStageName = "Stage 4: Workflow Impl.", AssignedTeam = "Modern Workplace Team" }
+            new KanbanProject { Id = 1, ClientName = "Law Firm Z", ProjectName = "Office Expansion" },
+            new KanbanProject { Id = 2, ClientName = "Retail Corp", ProjectName = "HQ Upgrade" },
+            new KanbanProject { Id = 3, ClientName = "School A", ProjectName = "Cloud Migration Only" } // Project with NO Logistics tasks
         };
+
+        Tasks = new List<KanbanTask>
+        {
+            // Logistics Tasks
+            new KanbanTask { Id = 104, ProjectId = 1, Title = "Deliver Order #1099", Description = "New Order: 5x MacBook Pro.", Priority = "High", Status = "Backlog", AssignedTeam = "Logistics & Procurement", DueDate = DateTime.Now.AddDays(2) },
+            new KanbanTask { Id = 101, ProjectId = 2, Title = "Deliver Order #1024", Description = "5x Dell Laptops.", Priority = "High", Status = "Doing", AssignedTeam = "Logistics & Procurement", DueDate = DateTime.Now.AddDays(1) },
+
+            // Cloud Tasks (School A has only Cloud tasks)
+            new KanbanTask { Id = 105, ProjectId = 3, Title = "Azure Setup", Description = "Provision storage.", Priority = "Low", Status = "Backlog", AssignedTeam = "Cloud Migration" }
+        };
+
+        // Initial Calculation of Visible Projects based on default team
+        UpdateVisibleProjects();
+    }
+
+    private void FilterByTeam(string team)
+    {
+        CurrentTeamFilter = team;
+        SelectedProjectId = null; // Reset dropdown when switching teams
+        UpdateVisibleProjects(); // Recalculate which projects are relevant
+    }
+
+    // --- NEW: SMART PROJECT FILTER LOGIC ---
+    private void UpdateVisibleProjects()
+    {
+        if (CurrentTeamFilter == "All")
+        {
+            VisibleProjects = AllProjects;
+        }
+        else
+        {
+            // Find projects that have at least one active task (Backlog/Doing) assigned to the current team
+            var relevantProjectIds = Tasks
+                .Where(t => t.AssignedTeam == CurrentTeamFilter && (t.Status == "Backlog" || t.Status == "Doing"))
+                .Select(t => t.ProjectId)
+                .Distinct()
+                .ToList();
+
+            VisibleProjects = AllProjects.Where(p => relevantProjectIds.Contains(p.Id)).ToList();
+        }
     }
 
     private void OnProjectSelected(ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value?.ToString(), out int projectId))
-        {
-            SelectedProject = ActiveProjects.FirstOrDefault(p => p.Id == projectId);
-            LoadTasksForProject(projectId);
-        }
-        else
-        {
-            SelectedProject = null;
-            Tasks.Clear();
-        }
+        if (int.TryParse(e.Value?.ToString(), out int id)) SelectedProjectId = id;
+        else SelectedProjectId = null;
     }
 
-    private void LoadTasksForProject(int projectId)
-    {
-        if (projectId == 1)
-        {
-            Tasks = new List<KanbanTask>
-            {
-                // Example: One Verified, One Doing, One Pending Review
-                new KanbanTask { Id = 1, Title = "Configure VPN Access", Description = "Setup OpenVPN for remote staff.", Priority = "High", DueDate = DateTime.Now.AddDays(-1), Status = "Verified", ProofNotes = "VPN Confirmed" },
-                new KanbanTask { Id = 2, Title = "Firewall Rule Review", Description = "Audit current inbound rules.", Priority = "Medium", DueDate = DateTime.Now.AddDays(2), Status = "Doing" },
-                new KanbanTask { Id = 3, Title = "Deploy Antivirus", Description = "Install on all 50 endpoints.", Priority = "High", DueDate = DateTime.Now.AddDays(5), Status = "PendingReview", ProofLink = "http://logs.server.local" }
-            };
-        }
-        else
-        {
-            Tasks = new List<KanbanTask>();
-        }
-    }
-
-    private void MoveTask(KanbanTask task, string newStatus)
-    {
-        task.Status = newStatus;
-    }
+    private void MoveTask(KanbanTask task, string newStatus) => task.Status = newStatus;
 
     private void InitiateCompleteTask(KanbanTask task)
     {
         TaskToComplete = task;
         ProofModel = new ProofOfWork();
-        isProofModalVisible = true;
+
+        bool isLogistics = task.AssignedTeam == "Logistics & Procurement" ||
+                          task.Title.Contains("Order", StringComparison.OrdinalIgnoreCase);
+
+        if (isLogistics)
+        {
+            NewAssets = new List<NewAssetModel> { new NewAssetModel() };
+            isAssetModalVisible = true;
+        }
+        else
+        {
+            isProofModalVisible = true;
+        }
     }
 
-    private void HandleFileSelected(InputFileChangeEventArgs e)
+    private void AddAssetRow() => NewAssets.Add(new NewAssetModel());
+    private void RemoveAssetRow(NewAssetModel item) => NewAssets.Remove(item);
+
+    private void SubmitAssetsAndComplete()
     {
-        ProofModel.FileName = e.File.Name;
+        if (TaskToComplete != null) { TaskToComplete.Status = "PendingReview"; TaskToComplete.ProofFileName = ProofModel.FileName; isAssetModalVisible = false; }
     }
 
     private void FinalizeCompleteTask()
     {
-        if (TaskToComplete != null)
-        {
-            // Why: Sets status to PendingReview instead of Verified
-            TaskToComplete.Status = "PendingReview";
-            TaskToComplete.ProofLink = ProofModel.Link;
-            TaskToComplete.ProofNotes = ProofModel.Notes;
-            TaskToComplete.ProofFileName = ProofModel.FileName;
-            isProofModalVisible = false;
-        }
+        if (TaskToComplete != null) { TaskToComplete.Status = "PendingReview"; TaskToComplete.ProofFileName = ProofModel.FileName; isProofModalVisible = false; }
     }
 
-    private void AddTask()
+    private void HandleFileSelected(InputFileChangeEventArgs e) => ProofModel.FileName = e.File.Name;
+
+    private string GetTeamShortCode(string fullTeam) => fullTeam switch
     {
-        if (!string.IsNullOrWhiteSpace(NewTaskModel.Title))
-        {
-            Tasks.Add(new KanbanTask
+        "Logistics & Procurement" => "LOG",
+        "Infrastructure" => "INFRA",
+        "Network & Security" => "NET",
+        "Cloud Migration" => "CLOUD",
+        "Modern Workplace" => "WORK",
+        "Training & Support" => "EDU",
+        _ => "GEN"
+    };
+
+    private RenderFragment RenderCardContent(KanbanTask task) => __builder =>
+    {
+        <div class="card-content">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="badge-priority @task.Priority.ToLower()">@task.Priority</span>
+                @if (CurrentTeamFilter == "All")
+                {
+                    <span class="team-badge-xs">@GetTeamShortCode(task.AssignedTeam)</span>
+                }
+            </div>
+            <p class="task-title">@task.Title</p>
+            <p class="task-desc">@task.Description</p>
+            @if (task.DueDate.HasValue)
             {
-                Id = new Random().Next(100, 999),
-                Title = NewTaskModel.Title,
-                Description = NewTaskModel.Description,
-                Priority = NewTaskModel.Priority,
-                DueDate = NewTaskModel.DueDate,
-                Status = "Backlog"
-            });
-
-            NewTaskModel = new() { DueDate = DateTime.Now.AddDays(1) };
-            isAddingTask = false;
-        }
-    }
-
-    private void CancelAddTask()
-    {
-        isAddingTask = false;
-        NewTaskModel = new() { DueDate = DateTime.Now.AddDays(1) };
-    }
-
-    private int GetStageProgress()
-    {
-        if (!Tasks.Any()) return 0;
-        // Only count VERIFIED tasks as 100% complete progress
-        return (int)((double)Tasks.Count(t => t.Status == "Verified") / Tasks.Count * 100);
-    }
+                <small class="text-muted d-block mt-1"><span class="bi bi-calendar2-event"></span> @task.DueDate.Value.ToString("MMM dd")</small>
+            }
+        </div>
+    };
 }
