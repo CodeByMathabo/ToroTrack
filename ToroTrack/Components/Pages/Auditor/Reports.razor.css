@@ -1,0 +1,241 @@
+﻿/* LAYOUT (Matched AuditTrail) */
+.page-shell {
+    padding: 1rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* HEADER (Matched AuditTrail) */
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--toro-bg);
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    margin: 0;
+}
+
+.section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #283618;
+    margin-top: 2rem;
+}
+
+/* GENERATOR CARD */
+.generator-card {
+    background-color: #a3b18a;
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #283618;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.toro-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #666;
+    text-transform: uppercase;
+}
+
+/* INPUTS (Matched AuditTrail Search Input: #dad7cd) */
+.toro-input {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(40, 54, 24, 0.3);
+    background-color: #dad7cd; /* Exact Sage match */
+    color: #283618;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.2s;
+}
+
+    .toro-input:focus {
+        box-shadow: 0 0 0 2px rgba(40, 54, 24, 0.1);
+        border-color: var(--toro-bg);
+        background-color: #fff;
+    }
+
+/* FORMAT TOGGLES */
+.format-toggles {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-format {
+    flex: 1;
+    border: 1px solid #283618;
+    background: transparent;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+    .btn-format.active {
+        background-color: #e9edc9; /* Light Olive */
+        color: #283618;
+        border-color: #283618;
+        font-weight: 800;
+    }
+
+.card-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid #eee;
+    padding-top: 1.5rem;
+}
+
+/* TABLE STYLES (Matched AuditTrail) */
+.table-container {
+    background-color: #a3b18a !important;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #283618;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+
+.toro-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+    .toro-table thead {
+        background-color: #e9edc9; /* Exact Light Olive match */
+    }
+
+    .toro-table th {
+        padding: 1.2rem 1rem;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #bcbd8b; /* Exact text color from AuditTrail file */
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        text-align: left;
+    }
+
+    .toro-table td {
+        padding: 1rem 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #eee;
+        color: #333;
+        background-color: white; /* Rows white for readability */
+    }
+
+/* USER AVATAR (Matched AuditTrail) */
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar-xs {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.small-role {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.text-monospace {
+    font-family: 'Courier New', monospace;
+}
+
+/* DOWNLOAD BUTTON (Visible Solid Style) */
+.btn-download-solid {
+    background-color: white;
+    border: 1px solid #ccc;
+    color: #333;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+    .btn-download-solid:hover {
+        background-color: var(--toro-bg);
+        color: #fefae0;
+        border-color: var(--toro-bg);
+    }
+
+/* BADGES */
+.badge-type {
+    background-color: #e7f1ff;
+    color: #283618;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid #dad7cd;
+}
+
+/* ANIMATION */
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
