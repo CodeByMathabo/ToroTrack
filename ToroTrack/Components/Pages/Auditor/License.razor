@@ -1,0 +1,208 @@
+﻿@page "/auditor/license"
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Components.Layout
+@* attribute [Authorize(Roles = "Auditor")] *@
+@rendermode InteractiveServer
+
+<PageTitle>License Registry | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header">
+        <div class="header-left">
+            <h1 class="page-title">License Registry</h1>
+            <p class="page-subtitle">Manage software entitlements and hardware allocations.</p>
+        </div>
+        <div class="header-right">
+            <div class="search-wrapper">
+                <span class="bi bi-search search-icon"></span>
+                <input type="text" class="toro-search" placeholder="Search..." @bind="SearchQuery" @bind:event="oninput" />
+            </div>
+
+            @* Clearly labeled as Manual Override *@
+            <button class="btn-manual-override" @onclick="OpenAddModal" title="Emergency/Legacy Entry Only">
+                <span class="bi bi-keyboard me-2"></span> Manual Entry
+            </button>
+        </div>
+    </header>
+
+    @* LIST VIEW TABLE *@
+    <div class="table-container">
+        <table class="toro-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%">Software / Asset</th>
+                    <th style="width: 15%">Client</th>
+                    <th style="width: 15%">Source</th> 
+                    <th style="width: 15%">Expiry Date</th>
+                    <th style="width: 15%">Cost</th>
+                    <th style="width: 15%" class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var license in FilteredLicenses)
+                {
+                    <tr>
+                        <td class="fw-bold">
+                            <span class="@GetIconClass(license.Type) me-2 text-muted"></span>
+                            @license.Name
+                        </td>
+                        <td>@license.ClientName</td>
+
+                        @* NEW: Source Badge Logic *@
+                        <td>
+                            @if (license.Source == "System Order")
+                            {
+                                <span class="badge-source auto">
+                                    <span class="bi bi-lightning-charge-fill me-1"></span> System Order
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge-source manual">
+                                    <span class="bi bi-person-fill-gear me-1"></span> Manual Entry
+                                </span>
+                            }
+                        </td>
+
+                        <td>
+                            @* Expiry Warning Logic *@
+                            @if (GetDaysRemaining(license.ExpiryDate) < 30)
+                            {
+                                <span class="text-danger fw-bold">@license.ExpiryDate.ToString("MMM dd")</span>
+                                <span class="bi bi-exclamation-circle-fill text-danger ms-1" title="Expiring"></span>
+                            }
+                            else
+                            {
+                                <span>@license.ExpiryDate.ToString("MMM dd, yyyy")</span>
+                            }
+                        </td>
+                        <td>R @license.CostPerSeat.ToString("N2")</td>
+                        <td class="text-center">
+                            @* Labeled as 'Override' or 'Edit' based on context *@
+                            <button class="btn-edit-table" @onclick="() => EditLicense(license)">
+                                <span class="bi bi-pencil-square me-1"></span> Edit / Override
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@* ADD/EDIT MODAL *@
+<ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
+
+    @if (CurrentLicense.Source == "System Order")
+    {
+        <div class="alert alert-info mb-3 small">
+            <span class="bi bi-info-circle-fill me-2"></span>
+            <strong>Automated Record:</strong> This license was created by a client order. Only edit if you need to correct a system error.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning mb-3 small">
+            <span class="bi bi-exclamation-triangle-fill me-2"></span>
+            <strong>Manual Entry:</strong> Ensure you have a signed paper trail before creating records manually.
+        </div>
+    }
+
+    <div class="form-group mb-3">
+        <label class="small-label">License Name</label>
+        <input @bind="CurrentLicense.Name" class="form-control" placeholder="e.g. Microsoft 365 E5" />
+    </div>
+    <div class="form-group mb-3">
+        <label class="small-label">Client</label>
+        <input @bind="CurrentLicense.ClientName" class="form-control" placeholder="Client Name" />
+    </div>
+    <div class="row">
+        <div class="col-6">
+            <div class="form-group mb-3">
+                <label class="small-label">Expiry Date</label>
+                <input type="date" @bind="CurrentLicense.ExpiryDate" class="form-control" />
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="form-group mb-3">
+                <label class="small-label">Cost (ZAR)</label>
+                <input type="number" @bind="CurrentLicense.CostPerSeat" class="form-control" />
+            </div>
+        </div>
+    </div>
+
+    @* Source is Read-Only *@
+    <div class="form-group mb-3">
+        <label class="small-label">Record Source</label>
+        <input value="@CurrentLicense.Source" class="form-control bg-light" disabled />
+    </div>
+
+    <div class="text-end mt-3">
+        <button class="btn-primary-toro" @onclick="SaveLicense">Save Record</button>
+    </div>
+</ToroModal>
+
+@code {
+    private string SearchQuery = "";
+    private bool isModalVisible = false;
+    private string modalTitle = "Add License";
+
+    public class LicenseItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string ClientName { get; set; } = "";
+        public string Type { get; set; } = "Software";
+        public string Source { get; set; } = "System Order"; // System Order vs Manual Entry
+        public DateTime ExpiryDate { get; set; }
+        public decimal CostPerSeat { get; set; }
+    }
+
+    private LicenseItem CurrentLicense = new();
+    private List<LicenseItem> Licenses = new();
+
+    protected override void OnInitialized()
+    {
+        Licenses = new List<LicenseItem>
+        {
+            new LicenseItem { Id = 1, Name = "Microsoft 365 E5", ClientName = "Law Firm Z", Type = "Software", Source = "System Order", ExpiryDate = DateTime.Now.AddDays(14), CostPerSeat = 650 },
+            new LicenseItem { Id = 2, Name = "ESET Endpoint Security", ClientName = "Retail Corp", Type = "Software", Source = "System Order", ExpiryDate = DateTime.Now.AddDays(240), CostPerSeat = 120 },
+            // Example of a legacy item manually entered
+            new LicenseItem { Id = 3, Name = "Dell Latitude 5420 (Lease)", ClientName = "Logistics Co", Type = "Hardware", Source = "Manual Entry", ExpiryDate = DateTime.Now.AddDays(5), CostPerSeat = 850 }
+        };
+    }
+
+    private IEnumerable<LicenseItem> FilteredLicenses =>
+        string.IsNullOrWhiteSpace(SearchQuery)
+        ? Licenses
+        : Licenses.Where(l => l.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) || l.ClientName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+
+    private void OpenAddModal()
+    {
+        // Manual entries default to "Manual Entry" source
+        CurrentLicense = new LicenseItem { ExpiryDate = DateTime.Now.AddYears(1), Source = "Manual Entry" };
+        modalTitle = "Manual License Entry";
+        isModalVisible = true;
+    }
+
+    private void EditLicense(LicenseItem item)
+    {
+        CurrentLicense = item;
+        modalTitle = "Edit / Override License";
+        isModalVisible = true;
+    }
+
+    private void SaveLicense()
+    {
+        if (CurrentLicense.Id == 0)
+        {
+            CurrentLicense.Id = Licenses.Max(l => l.Id) + 1;
+            Licenses.Add(CurrentLicense);
+        }
+        isModalVisible = false;
+    }
+
+    private int GetDaysRemaining(DateTime date) => (date - DateTime.Now).Days;
+
+    private string GetIconClass(string type) => type == "Hardware" ? "bi bi-laptop" : "bi bi-microsoft";
+}
