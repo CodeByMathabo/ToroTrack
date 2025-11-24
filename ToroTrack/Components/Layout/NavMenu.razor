@@ -1,7 +1,9 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 
 <div class="nav-wrapper">
 
+    @* 1. Header *@
     <div class="nav-header">
         <div class="logo-container">
             <img src="/appImages/toro-icon.png" alt="Toro Logo" />
@@ -11,96 +13,32 @@
 
     <div class="nav-divider"></div>
 
+    @* 2. Scrollable Links Area - Now uses the component *@
     <div class="nav-links-scroll">
-
-        <AuthorizeView Roles="Admin">
-            <Authorized>
-                <div class="menu-section-label">Administration Portal</div>
-                @foreach (var link in AdminLinks)
-                {
-                    <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
-                        <span class="@link.IconClass"></span>
-                        <span class="link-text">@link.Label</span>
-                    </NavLink>
-                }
-            </Authorized>
-        </AuthorizeView>
-
-        <AuthorizeView Roles="TeamMember">
-            <Authorized>
-                <div class="menu-section-label">Team Portal</div>
-                @foreach (var link in TeamLinks)
-                {
-                    <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
-                        <span class="@link.IconClass"></span>
-                        <span class="link-text">@link.Label</span>
-                    </NavLink>
-                }
-            </Authorized>
-        </AuthorizeView>
-
-        <AuthorizeView Roles="Auditor">
-            <Authorized>
-                <div class="menu-section-label">Auditing Portal</div>
-                @foreach (var link in AuditorLinks)
-                {
-                    <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
-                        <span class="@link.IconClass"></span>
-                        <span class="link-text">@link.Label</span>
-                    </NavLink>
-                }
-            </Authorized>
-        </AuthorizeView>
-
-        <AuthorizeView Roles="Client">
-            <Authorized>
-                <div class="menu-section-label">Client Portal</div>
-                @foreach (var link in ClientLinks)
-                {
-                    <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
-                        <span class="@link.IconClass"></span>
-                        <span class="link-text">@link.Label</span>
-                    </NavLink>
-                }
-            </Authorized>
-        </AuthorizeView>
-
-        <AuthorizeView>
-            <NotAuthorized>
-                <div class="menu-section-label">Public</div>
-                <NavLink class="toro-nav-link" href="Account/Login">
-                    <span class="bi bi-box-arrow-in-right"></span>
-                    <span class="link-text">Login</span>
-                </NavLink>
-            </NotAuthorized>
-        </AuthorizeView>
-
+        <NavMenuLinks /> 
     </div>
 
+    @* 3. User Footer (Pinned to Bottom) *@
     <div class="user-footer">
-        <div class="user-card">
-            <img src="/appImages/toro-icon.png" alt="Profile" class="avatar" />
-            <div class="user-details">
-                <AuthorizeView>
-                    <Authorized>
-                        <div class="user-name">@context.User.Identity?.Name</div>
-                        <div class="user-role">@GetUserRole(context.User)</div>
-                    </Authorized>
-                    <NotAuthorized>
-                        <div class="user-name">Guest</div>
-                        <div class="user-role">Please Login</div>
-                    </NotAuthorized>
-                </AuthorizeView>
-            </div>
-        </div>
-
         <AuthorizeView>
             <Authorized>
+                @* User Info Card *@
+                <div class="user-card">
+                    <div class="avatar">
+                        <img src="/appImages/toro-icon.png" alt="User Avatar" style="width:100%; height:100%; object-fit:cover;" />
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">@context.User.Identity?.Name</span>
+                        <span class="user-role">@GetUserRole(context.User)</span>
+                    </div>
+                </div>
+
+                @* LOGOUT BUTTON - Redirects to Welcome Page *@
                 <form action="Account/Logout" method="post">
                     <AntiforgeryToken />
-                    <input type="hidden" name="ReturnUrl" value="" />
+                    <input type="hidden" name="ReturnUrl" value="/" />
                     <button type="submit" class="logout-btn">
-                        Sign Out
+                        LOGOUT
                     </button>
                 </form>
             </Authorized>
@@ -110,54 +48,12 @@
 </div>
 
 @code {
-    private class NavItem
-    {
-        public string Label { get; set; } = "";
-        public string Url { get; set; } = "";
-        public string IconClass { get; set; } = "";
-    }
-
-    /* ADMIN LINKS */
-    private List<NavItem> AdminLinks = new()
-    {
-        new NavItem { Label = "Overview",     Url = "admin/overview", IconClass = "bi bi-speedometer2" },
-        new NavItem { Label = "Invite Users", Url = "admin/users",    IconClass = "bi bi-person-plus" },
-        new NavItem { Label = "Projects",     Url = "admin/projects", IconClass = "bi bi-kanban" },
-        new NavItem { Label = "Verify Tasks", Url = "admin/verify",   IconClass = "bi bi-check2-square" },
-        new NavItem { Label = "Settings",     Url = "admin/settings", IconClass = "bi bi-gear" }
-    };
-
-    /* TEAM LINKS */
-    private List<NavItem> TeamLinks = new()
-    {
-        new NavItem { Label = "Kanban Board", Url = "team/kanban",    IconClass = "bi bi-layout-three-columns" }
-    };
-
-    /* CLIENT LINKS */
-    private List<NavItem> ClientLinks = new()
-    {
-        new NavItem { Label = "Project Details",   Url = "client/project-details", IconClass = "bi bi-info-circle" },
-        new NavItem { Label = "My Assets",         Url = "client/assets",          IconClass = "bi bi-laptop" },
-        new NavItem { Label = "Communication Hub", Url = "client/communication",   IconClass = "bi bi-chat-square-text" },
-        new NavItem { Label = "Settings",          Url = "client/settings",        IconClass = "bi bi-gear" }
-    };
-
-    /* AUDITOR LINKS */
-    private List<NavItem> AuditorLinks = new()
-    {
-        new NavItem { Label = "Compliance",      Url = "auditor/compliance",  IconClass = "bi bi-shield-check" },
-        new NavItem { Label = "Audit Trail",     Url = "auditor/audit-trail", IconClass = "bi bi-clock-history" },
-        new NavItem { Label = "License Config",  Url = "auditor/license",     IconClass = "bi bi-file-text" },
-        new NavItem { Label = "Reporting",       Url = "auditor/exporting",   IconClass = "bi bi-bar-chart-steps" },
-        new NavItem { Label = "Settings",        Url = "auditor/settings",    IconClass = "bi bi-gear" }
-    };
-
-    private string GetUserRole(System.Security.Claims.ClaimsPrincipal user)
+    private string GetUserRole(ClaimsPrincipal user)
     {
         if (user.IsInRole("Admin")) return "Administrator";
         if (user.IsInRole("Auditor")) return "Auditor";
-        if (user.IsInRole("Client")) return "Client";
         if (user.IsInRole("TeamMember")) return "Team Member";
+        if (user.IsInRole("Client")) return "Client";
         return "User";
     }
 }

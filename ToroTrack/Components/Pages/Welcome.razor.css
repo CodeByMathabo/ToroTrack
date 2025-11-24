@@ -1,0 +1,91 @@
+﻿/* Why: Container for full screen alignment */
+.welcome-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+/* Why: Centers video and forces cover to fill screen */
+.video-background {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: cover;
+    transform: translate(-50%, -50%);
+    z-index: -1;
+}
+
+/* Why: Adds contrast for logo over video */
+.subtle-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: -1;
+}
+
+/* Why: Responsive logo positioning */
+.logo-wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%; /* Mobile default */
+    z-index: 1;
+}
+
+@media (min-width: 600px) {
+    .logo-wrapper {
+        width: 400px;
+    }
+}
+
+@media (min-width: 900px) {
+    .logo-wrapper {
+        width: 500px;
+    }
+}
+
+.logo-image {
+    width: 100%;
+    height: auto;
+}
+
+/* Why: Floating action button style for continue */
+.continue-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background-color: #283618;
+    color: #606c38;
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+@media (min-width: 900px) {
+    .continue-btn {
+        right: 2rem;
+    }
+}
+
+.continue-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}

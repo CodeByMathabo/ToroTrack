@@ -1,17 +1,18 @@
-﻿/* MAIN CONTAINER */
-.login-container {
+﻿/* Container */
+.login-layout {
     position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    padding: 1rem;
     flex-direction: column;
     overflow: hidden;
+    padding: 1rem;
+    isolation: isolate;
 }
 
-/* VIDEO BACKGROUND */
-.video-bg {
+/* Video Background */
+.video-background {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -24,8 +25,7 @@
     z-index: -2;
 }
 
-/* DARK OVERLAY */
-.overlay {
+.subtle-overlay {
     position: absolute;
     top: 0;
     left: 0;
@@ -35,108 +35,103 @@
     z-index: -1;
 }
 
-/* GLASSMORPHISM CARD */
-.login-card {
-    text-align: center;
+/* Glass Card */
+.glass-card {
+    background-color: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 2.5rem;
     width: 100%;
-    max-width: 500px;
-    z-index: 1;
-    padding: 2rem;
-    border-radius: 16px;
-    /* Glass Effect from styles.js */
-    background-color: rgba(253, 255, 252, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px); /* Safari support */
-    border: 1px solid rgba(253, 255, 252, 0.2);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
 }
 
-/* TITLE */
-.login-title {
-    font-family: 'Disek', monospace !important; /* Using your font */
+.login-header {
     color: #283618;
-    margin-bottom: 1rem;
-    text-align: center;
-    font-size: 2rem;
-    font-weight: bold;
+    margin-bottom: 2rem;
+    font-size: 2.2rem;
+    font-weight: 900;
+    font-family: monospace;
+    letter-spacing: 1px;
 }
 
-/* FORM INPUTS */
-.custom-input {
+.login-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     width: 100%;
-    margin-bottom: 1rem;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    font-size: 1rem;
-    font-family: 'Disek', monospace !important;
-    /* Transparent/Glassy Input Background */
-    background-color: rgba(255, 255, 255, 0.6);
-    color: #525252;
-    padding: 0.8rem 1rem;
-    transition: border-color 0.2s;
 }
 
-    .custom-input:focus {
-        outline: none;
-        border-color: #606c38;
-        border-width: 2px;
-        background-color: rgba(255, 255, 255, 0.8);
-        box-shadow: none;
+.input-group {
+    width: 100%;
+    margin-bottom: 1.5rem;
+}
+
+/* Targeted 'input' directly inside .login-form to override Bootstrap */
+::deep .login-form input {
+    width: 100% !important;
+    padding: 1rem 1.25rem !important; /* Force Height */
+    font-size: 1.1rem !important;
+    border-radius: 10px !important;
+    border: none !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    color: #333 !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    outline: none !important;
+    height: auto !important; /* Prevent Bootstrap from locking height */
+    line-height: normal !important;
+}
+
+    ::deep .login-form input::placeholder {
+        color: #777;
     }
 
-    .custom-input::placeholder {
-        color: #525252;
-        opacity: 0.7;
+    ::deep .login-form input:focus {
+        background: #ffffff !important;
+        box-shadow: 0 0 0 3px rgba(96, 108, 56, 0.3) !important;
     }
 
-/* LOGIN BUTTON */
-.btn-login {
+/* Button Style */
+.login-btn {
     background-color: #283618;
-    color: #606c38; /* Custom Text Color */
-    padding: 1rem 2.5rem;
-    border-radius: 8px;
-    font-size: 1.125rem;
-    font-weight: 600;
+    color: #fefae0;
+    padding: 0.8rem 2rem; /* Reduced from 1.2rem */
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: bold;
+    letter-spacing: 1px;
     border: none;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    width: 90%;
+    width: 100%;
+    margin-top: 0.5rem;
     margin-bottom: 1.5rem;
-    font-family: 'Disek', monospace !important;
     text-transform: uppercase;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
-    .btn-login:hover {
-        background-color: #606c38;
-        color: #283618;
-        border: 1px solid #283618;
+    .login-btn:hover {
+        background-color: #384b22;
+        transform: translateY(-2px);
     }
 
-/* FOOTER LINKS */
-.login-footer {
+.form-footer {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 90%;
-    margin: 0 auto;
-    color: #fefae0;
-    font-size: 0.9rem;
+    justify-content: center;
+    width: 100%;
 }
 
 .forgot-link {
-    color: #fefae0;
+    color: #283618;
     text-decoration: none;
-    opacity: 0.8;
-    transition: opacity 0.2s;
+    font-size: 0.95rem;
+    opacity: 0.9;
+    font-weight: 500;
 }
 
     .forgot-link:hover {
-        opacity: 1;
         text-decoration: underline;
+        opacity: 1;
     }
-
-.form-check-label {
-    color: #fefae0;
-    font-weight: normal;
-}

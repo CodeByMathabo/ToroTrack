@@ -1,0 +1,44 @@
+﻿@page "/"
+@layout ToroTrack.Components.Layout.PublicLayout
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>Welcome | Toro Track</PageTitle>
+
+<div class="welcome-container">
+    @* Video Background *@
+    <video autoplay loop muted playsinline class="video-background">
+        <source src="/appImages/welcome_animation.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+    </video>
+
+    @* Dark Overlay for readability *@
+    <div class="subtle-overlay"></div>
+
+    @* Logo *@
+    <div class="logo-wrapper">
+        <img src="/appImages/logo.png" alt="Logo" class="logo-image" />
+    </div>
+
+    @* Continue Button *@
+    <button @onclick="NavigateToLogin" class="continue-btn" aria-label="Continue to login">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z" />
+        </svg>
+    </button>
+</div>
+
+@code {
+    private void NavigateToLogin()
+    {
+        try
+        {
+            // Why: Standard navigation to the Identity login page
+            NavigationManager.NavigateTo("Account/Login");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Navigation error: {ex.Message}");
+        }
+    }
+}

@@ -1,0 +1,17 @@
+﻿@inherits LayoutComponentBase
+
+<div class="public-layout-container">
+    @Body
+</div>
+
+<style>
+    /* Why: Ensures the layout takes up the full screen to support absolute positioning of videos */
+    .public-layout-container {
+        width: 100vw;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+        position: relative;
+    }
+</style>

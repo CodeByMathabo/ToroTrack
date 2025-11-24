@@ -5,6 +5,7 @@ using ToroTrack.Components;
 using Microsoft.AspNetCore.HttpOverrides;
 using ToroTrack.Components.Account;
 using ToroTrack.Data;
+using Microsoft.AspNetCore.StaticFiles;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,7 +36,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// IDENTITY CONFIGURATION to enable Role Management (Admin, Auditor, Client)
+// IDENTITY CONFIGURATION
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -59,13 +60,21 @@ else
 
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
+// Explicitly Allow MP4 Files. By default, some environments block unknown file types. This forces support.
+var provider = new FileExtensionContentTypeProvider();
+provider.Mappings[".mp4"] = "video/mp4";
+provider.Mappings[".mov"] = "video/quicktime";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider
+});
+
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Add Identity Endpoints
 app.MapAdditionalIdentityEndpoints();
 
 app.Run();

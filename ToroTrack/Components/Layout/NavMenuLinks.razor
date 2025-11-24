@@ -1,0 +1,101 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="nav-links-container">
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <div class="menu-section-label">Administration Portal</div>
+            @foreach (var link in AdminLinks)
+            {
+                <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
+                    <span class="@link.IconClass"></span>
+                    <span class="link-text">@link.Label</span>
+                </NavLink>
+            }
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="Auditor">
+        <Authorized>
+            <div class="menu-section-label">Auditor Portal</div>
+            @foreach (var link in AuditorLinks)
+            {
+                <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
+                    <span class="@link.IconClass"></span>
+                    <span class="link-text">@link.Label</span>
+                </NavLink>
+            }
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="TeamMember">
+        <Authorized>
+            <div class="menu-section-label">Team Portal</div>
+            @foreach (var link in TeamLinks)
+            {
+                <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
+                    <span class="@link.IconClass"></span>
+                    <span class="link-text">@link.Label</span>
+                </NavLink>
+            }
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="Client">
+        <Authorized>
+            <div class="menu-section-label">Client Portal</div>
+            @foreach (var link in ClientLinks)
+            {
+                <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
+                    <span class="@link.IconClass"></span>
+                    <span class="link-text">@link.Label</span>
+                </NavLink>
+            }
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private class NavItem
+    {
+        public string Label { get; set; } = "";
+        public string Url { get; set; } = "";
+        public string IconClass { get; set; } = "";
+    }
+
+    // ADMIN LINKS
+    private List<NavItem> AdminLinks = new()
+    {
+        new NavItem { Label = "Overview",       Url = "admin/overview",       IconClass = "bi bi-grid" },
+        new NavItem { Label = "Users",          Url = "admin/users",          IconClass = "bi bi-people" },
+        new NavItem { Label = "Projects",       Url = "admin/projects",       IconClass = "bi bi-folder" },
+        new NavItem { Label = "Catalog",        Url = "admin/catalog",        IconClass = "bi bi-collection" },
+        new NavItem { Label = "Verify Tasks",   Url = "admin/verify-tasks",   IconClass = "bi bi-check-circle" },
+        new NavItem { Label = "Settings",       Url = "admin/settings",       IconClass = "bi bi-gear" }
+    };
+
+    // AUDITOR LINKS
+    private List<NavItem> AuditorLinks = new()
+    {
+        new NavItem { Label = "Compliance",      Url = "auditor/compliance",  IconClass = "bi bi-shield-check" },
+        new NavItem { Label = "Audit Trail",     Url = "auditor/audit-trail", IconClass = "bi bi-clock-history" },
+        new NavItem { Label = "License Config",  Url = "auditor/license",     IconClass = "bi bi-file-text" },
+        new NavItem { Label = "Reporting",       Url = "auditor/exporting",   IconClass = "bi bi-box-arrow-up" },
+        new NavItem { Label = "Settings",        Url = "auditor/settings",    IconClass = "bi bi-gear" }
+    };
+
+    // TEAM MEMBER LINKS
+    private List<NavItem> TeamLinks = new()
+    {
+        new NavItem { Label = "Kanban Board",    Url = "team/kanban",         IconClass = "bi bi-kanban" }
+    };
+
+    // CLIENT LINKS
+    private List<NavItem> ClientLinks = new()
+    {
+        new NavItem { Label = "Project Details", Url = "client/project-details", IconClass = "bi bi-info-circle" },
+        new NavItem { Label = "My Assets",       Url = "client/assets",          IconClass = "bi bi-laptop" },
+        new NavItem { Label = "Communication",   Url = "client/communication",   IconClass = "bi bi-chat-text" },
+        new NavItem { Label = "Order Assets",    Url = "client/order-assets",    IconClass = "bi bi-cart" },
+        new NavItem { Label = "Settings",        Url = "client/settings",        IconClass = "bi bi-gear" }
+    };
+}
