@@ -1,9 +1,15 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-
+using ToroTrack.Data.Entities;
 namespace ToroTrack.Data
 {
     public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext<ApplicationUser>(options)
     {
+        // Creates the tables in the DB.
+        public DbSet<Project> Projects { get; set; }
+        public DbSet<ProjectTask> ProjectTasks { get; set; }
+        public DbSet<CatalogItem> CatalogItems { get; set; }
+        public DbSet<ClientAsset> ClientAssets { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
     }
 }
