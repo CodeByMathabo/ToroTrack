@@ -1,10 +1,12 @@
 ﻿@page "/admin/users"
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authorization
-@using ToroTrack.Data
-@*attribute [Authorize(Roles = "Admin")]*@
+@using ToroTrack.Business.Services
+@using ToroTrack.Models
+@using ToroTrack.Data.Entities
+
 @inject ILogger<InviteUser> Logger
-@inject IJSRuntime JS
+@inject IInviteService InviteService
 @rendermode InteractiveServer
 
 <PageTitle>Invite Users | Toro Track</PageTitle>
@@ -18,7 +20,7 @@
     </header>
 
     <div class="invite-layout">
-        @* Left Column: Invitation Form *@
+        @* Left Card: Invitation Form *@
         <section class="invite-form-card">
             <h3 class="form-header">Send Invitation</h3>
 
@@ -27,7 +29,6 @@
 
                 <div class="form-group">
                     <label class="small-label">User Role</label>
-                    @* Why: Uses custom CSS to override default blue focus ring with Sage Green *@
                     <InputSelect @bind-Value="InputModel.Role" class="form-select form-control">
                         <option value="Admin">Administrator</option>
                         <option value="Auditor">Auditor</option>
@@ -45,48 +46,54 @@
                 {
                     <div class="client-fields-group">
                         <h4 class="section-divider">Client Details</h4>
-
                         <div class="form-group">
                             <label class="small-label">Full Name</label>
                             <InputText @bind-Value="InputModel.FullName" class="form-control" placeholder="Themba Kobe" />
                             <ValidationMessage For="@(() => InputModel.FullName)" class="text-danger" />
                         </div>
-
                         <div class="form-group">
                             <label class="small-label">Company Name</label>
                             <InputText @bind-Value="InputModel.CompanyName" class="form-control" placeholder="Acme Corp" />
                             <ValidationMessage For="@(() => InputModel.CompanyName)" class="text-danger" />
                         </div>
-
                         <div class="form-row">
-                            <div class="form-group half-width">
+                             <div class="form-group half-width">
                                 <label class="small-label">Contact Number</label>
                                 <InputText @bind-Value="InputModel.ContactNumber" class="form-control" placeholder="+27 82 545 7496" />
                             </div>
                             <div class="form-group half-width">
                                 <label class="small-label">Client Job Role</label>
-                                <InputText @bind-Value="InputModel.ClientJobRole" class="form-control" placeholder="e.g. Founder, Project Manager" />
+                                <InputText @bind-Value="InputModel.ClientJobRole" class="form-control" placeholder="e.g. Founder" />
                             </div>
                         </div>
                     </div>
                 }
 
                 <div class="form-actions mt-4">
-                    <button type="submit" class="btn-primary-toro w-100">
-                        <span class="bi bi-envelope-plus-fill"></span> Send Invitation
+                    <button type="submit" class="btn-primary-toro w-100" disabled="@IsProcessing">
+                        @if (IsProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span> <span>Sending...</span>
+                        }
+                        else
+                        {
+                            <span class="bi bi-envelope-plus-fill"></span> <span>Send Invitation</span>
+                        }
                     </button>
                 </div>
 
-                @if (IsSuccess)
+                @if (!string.IsNullOrEmpty(SuccessMessage))
                 {
-                    <div class="alert alert-success mt-3">
-                        <span class="bi bi-check-circle-fill me-2"></span> Invitation queued successfully.
-                    </div>
+                    <div class="alert alert-success mt-3">@SuccessMessage</div>
+                }
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger mt-3">@ErrorMessage</div>
                 }
             </EditForm>
         </section>
 
-        @* Right Column: Pending Invitations Table *@
+        @* Right Card: Pending Invitations List *@
         <section class="invite-list-card">
             <h3 class="form-header">Pending Invitations</h3>
 
@@ -101,26 +108,36 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var invite in PendingInvites)
+                    @if (PendingInvites == null)
                     {
-                        <tr>
-                            <td>
-                                <div class="fw-bold">@invite.Email</div>
-                                @if (!string.IsNullOrEmpty(invite.CompanyName))
-                                {
-                                    <small class="text-muted">@invite.CompanyName</small>
-                                }
-                            </td>
-                            <td><span class="role-badge @invite.Role.ToLower()">@invite.Role</span></td>
-                            <td>@invite.DateInvited.ToString("MMM dd, yyyy")</td>
-                            <td><span class="status-pending">Pending</span></td>
-                            <td class="text-center">
-                                @* Why: Replaced icon with a solid Red button for clarity *@
-                                <button class="btn-revoke" @onclick="() => RevokeInvite(invite)">
-                                    Revoke
-                                </button>
-                            </td>
-                        </tr>
+                        <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                    }
+                    else if (!PendingInvites.Any())
+                    {
+                        <tr><td colspan="5" class="text-center text-muted">No pending invitations.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var invite in PendingInvites)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">@invite.Email</div>
+                                    @if (!string.IsNullOrEmpty(invite.CompanyName))
+                                    {
+                                        <small class="text-muted">@invite.CompanyName</small>
+                                    }
+                                </td>
+                                <td><span class="role-badge @invite.Role.ToLower()">@invite.Role</span></td>
+                                <td>@invite.DateInvited.ToString("MMM dd, yyyy")</td>
+                                <td><span class="status-pending">Pending</span></td>
+                                <td class="text-center">
+                                    <button class="btn-revoke" @onclick="() => RevokeInvite(invite.Id)">
+                                        Revoke
+                                    </button>
+                                </td>
+                            </tr>
+                        }
                     }
                 </tbody>
             </table>
@@ -130,77 +147,74 @@
 
 @code {
     private InviteFormModel InputModel { get; set; } = new();
-    private bool IsSuccess { get; set; } = false;
+    private List<PendingInvite> PendingInvites;
+    
+    private bool IsProcessing { get; set; } = false;
+    private string? SuccessMessage { get; set; }
+    private string? ErrorMessage { get; set; }
 
-    private List<PendingInvite> PendingInvites = new()
+    protected override async Task OnInitializedAsync()
     {
-        new PendingInvite { Id = 1, Email = "auditor@torotrack.com", Role = "Auditor", DateInvited = DateTime.Now.AddDays(-1) },
-        new PendingInvite { Id = 2, Email = "client@logistics.co", Role = "Client", CompanyName = "Logistics Co", DateInvited = DateTime.Now.AddHours(-4) }
-    };
+        await LoadInvitesAsync();
+    }
 
-    private async Task HandleValidSubmit()
+    private async Task LoadInvitesAsync()
     {
-        IsSuccess = false;
-        try
+        try 
         {
-            Logger.LogInformation("Admin initiating invite for {Email} as {Role}", InputModel.Email, InputModel.Role);
-
-            await Task.Delay(300);
-
-            PendingInvites.Insert(0, new PendingInvite
-            {
-                Id = new Random().Next(100, 999),
-                Email = InputModel.Email,
-                Role = InputModel.Role,
-                CompanyName = InputModel.CompanyName,
-                DateInvited = DateTime.Now
-            });
-
-            var previousRole = InputModel.Role;
-            InputModel = new InviteFormModel { Role = previousRole };
-            IsSuccess = true;
+            PendingInvites = await InviteService.GetPendingInvitesAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to process invitation for {Email}", InputModel.Email);
+            Logger.LogError(ex, "Failed to load invites");
         }
     }
 
-    private async Task RevokeInvite(PendingInvite invite)
+    private async Task HandleValidSubmit()
+    {
+        IsProcessing = true;
+        SuccessMessage = null;
+        ErrorMessage = null;
+
+        try
+        {
+            var inviteEntity = new PendingInvite
+            {
+                Email = InputModel.Email,
+                Role = InputModel.Role,
+                FullName = InputModel.FullName,
+                CompanyName = InputModel.CompanyName,
+                ContactNumber = InputModel.ContactNumber,
+                ClientJobRole = InputModel.ClientJobRole
+            };
+
+            await InviteService.SendInviteAsync(inviteEntity);
+            
+            SuccessMessage = "Invitation sent successfully.";
+            InputModel = new InviteFormModel();
+            await LoadInvitesAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error submitting invite");
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+
+    private async Task RevokeInvite(int id)
     {
         try
         {
-            Logger.LogWarning("Revoking invitation for {Email}", invite.Email);
-            await Task.Delay(200);
-            PendingInvites.Remove(invite);
+            await InviteService.RevokeInviteAsync(id);
+            await LoadInvitesAsync();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error revoking invite");
         }
-    }
-
-    public class InviteFormModel
-    {
-        [Required(ErrorMessage = "Role is required")]
-        public string Role { get; set; } = "Client";
-
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = "";
-
-        public string? FullName { get; set; }
-        public string? CompanyName { get; set; }
-        public string? ContactNumber { get; set; }
-        public string? ClientJobRole { get; set; }
-    }
-
-    public class PendingInvite
-    {
-        public int Id { get; set; }
-        public string Email { get; set; } = "";
-        public string Role { get; set; } = "";
-        public string? CompanyName { get; set; }
-        public DateTime DateInvited { get; set; }
     }
 }

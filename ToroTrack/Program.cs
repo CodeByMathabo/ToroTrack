@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using ToroTrack.Components;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.EntityFrameworkCore;
+using ToroTrack.Business.Services;
+using ToroTrack.Components;
 using ToroTrack.Components.Account;
 using ToroTrack.Data;
-using Microsoft.AspNetCore.StaticFiles;
+using ToroTrack.Data.Repositories;
+using ToroTrack.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +43,10 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
+// Why: Registering Repository and Service for Dependency Injection
+builder.Services.AddScoped<IInviteRepository, InviteRepository>();
+builder.Services.AddScoped<IInviteService, InviteService>();
+
 // IDENTITY CONFIGURATION
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddRoles<IdentityRole>()
@@ -46,7 +54,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+builder.Services.AddTransient<IEmailSender, EmailSender>();
 
 var app = builder.Build();
 

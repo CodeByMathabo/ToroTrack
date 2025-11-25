@@ -11,5 +11,7 @@ namespace ToroTrack.Data
         public DbSet<CatalogItem> CatalogItems { get; set; }
         public DbSet<ClientAsset> ClientAssets { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        // Table for tracking invites
+        public DbSet<PendingInvite> PendingInvites { get; set; }
     }
 }

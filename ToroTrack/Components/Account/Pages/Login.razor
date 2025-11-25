@@ -5,12 +5,14 @@
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
 @using ToroTrack.Data
+@using ToroTrack.Business.Services
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
 @inject ILogger<Login> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject IInviteService UserInviteService
 
 <PageTitle>Login | Toro Track</PageTitle>
 
@@ -79,7 +81,15 @@
             {
                 Logger.LogInformation("User logged in.");
 
-                // Role-Based Redirection Logic
+                try
+                {
+                    await UserInviteService.CompleteInviteAsync(Input.Email);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Failed to cleanup pending invite for {Email}", Input.Email);
+                }
+
                 var user = await UserManager.FindByEmailAsync(Input.Email);
                 if (user != null)
                 {
@@ -101,7 +111,6 @@
                     }
                     else
                     {
-                        // Default fallback if no role matches
                         RedirectManager.RedirectTo(ReturnUrl ?? "/");
                     }
                 }
@@ -113,12 +122,10 @@
         }
         catch (Exception ex)
         {
-            // Do NOT catch the redirect command!
             if (ex is NavigationException)
             {
                 throw;
             }
-
             Logger.LogError($"Login failed: {ex.Message}");
             errorMessage = "An unexpected error occurred.";
         }
