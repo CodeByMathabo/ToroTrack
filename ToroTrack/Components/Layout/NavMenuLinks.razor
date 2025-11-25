@@ -1,101 +1,108 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 
 <div class="nav-links-container">
+
+    @* --- ADMIN LINKS --- *@
     <AuthorizeView Roles="Admin">
         <Authorized>
             <div class="menu-section-label">Administration Portal</div>
-            @foreach (var link in AdminLinks)
-            {
-                <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
-                    <span class="@link.IconClass"></span>
-                    <span class="link-text">@link.Label</span>
-                </NavLink>
-            }
+
+            <NavLink class="toro-nav-link" href="admin/overview">
+                <span class="bi bi-speedometer2"></span>
+                <span class="link-text">Overview</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="admin/projects">
+                <span class="bi bi-kanban"></span>
+                <span class="link-text">Projects</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="admin/users">
+                <span class="bi bi-people-fill"></span>
+                <span class="link-text">Manage Users</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="admin/verify">
+                <span class="bi bi-check-all"></span>
+                <span class="link-text">Verify Tasks</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="admin/catalog">
+                <span class="bi bi-grid-3x3-gap"></span>
+                <span class="link-text">Catalog</span>
+            </NavLink>
         </Authorized>
     </AuthorizeView>
 
+    @* --- AUDITOR LINKS --- *@
     <AuthorizeView Roles="Auditor">
         <Authorized>
             <div class="menu-section-label">Auditor Portal</div>
-            @foreach (var link in AuditorLinks)
-            {
-                <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
-                    <span class="@link.IconClass"></span>
-                    <span class="link-text">@link.Label</span>
-                </NavLink>
-            }
+
+            <NavLink class="toro-nav-link" href="auditor/compliance">
+                <span class="bi bi-shield-check"></span>
+                <span class="link-text">Compliance</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="auditor/audit-trail">
+                <span class="bi bi-clock-history"></span>
+                <span class="link-text">Audit Trail</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="auditor/license">
+                <span class="bi bi-file-text"></span>
+                <span class="link-text">License Config</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="auditor/reports">
+                <span class="bi bi-box-arrow-up"></span>
+                <span class="link-text">Reporting</span>
+            </NavLink>
         </Authorized>
     </AuthorizeView>
 
+    @* --- TEAM MEMBER LINKS --- *@
     <AuthorizeView Roles="TeamMember">
         <Authorized>
             <div class="menu-section-label">Team Portal</div>
-            @foreach (var link in TeamLinks)
-            {
-                <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
-                    <span class="@link.IconClass"></span>
-                    <span class="link-text">@link.Label</span>
-                </NavLink>
-            }
+
+            <NavLink class="toro-nav-link" href="team/kanban">
+                <span class="bi bi-kanban"></span>
+                <span class="link-text">My Tasks</span>
+            </NavLink>
         </Authorized>
     </AuthorizeView>
 
+    @* --- CLIENT LINKS --- *@
     <AuthorizeView Roles="Client">
         <Authorized>
-            <div class="menu-section-label">Client Portal</div>
-            @foreach (var link in ClientLinks)
-            {
-                <NavLink class="toro-nav-link" href="@link.Url" Match="NavLinkMatch.Prefix">
-                    <span class="@link.IconClass"></span>
-                    <span class="link-text">@link.Label</span>
-                </NavLink>
-            }
+            <div class="menu-section-label">My Project</div>
+
+            <NavLink class="toro-nav-link" href="client/project-details">
+                <span class="bi bi-info-circle"></span>
+                <span class="link-text">Status</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="client/my-assets">
+                <span class="bi bi-laptop"></span>
+                <span class="link-text">My Assets</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="client/communication">
+                <span class="bi bi-chat-dots"></span>
+                <span class="link-text">Support</span>
+            </NavLink>
+
+            <NavLink class="toro-nav-link" href="client/order-assets">
+                <span class="bi bi-cart3"></span>
+                <span class="link-text">Order Assets</span>
+            </NavLink>
         </Authorized>
     </AuthorizeView>
+
 </div>
 
 @code {
-    private class NavItem
-    {
-        public string Label { get; set; } = "";
-        public string Url { get; set; } = "";
-        public string IconClass { get; set; } = "";
-    }
-
-    // ADMIN LINKS
-    private List<NavItem> AdminLinks = new()
-    {
-        new NavItem { Label = "Overview",       Url = "admin/overview",       IconClass = "bi bi-grid" },
-        new NavItem { Label = "Users",          Url = "admin/users",          IconClass = "bi bi-people" },
-        new NavItem { Label = "Projects",       Url = "admin/projects",       IconClass = "bi bi-folder" },
-        new NavItem { Label = "Catalog",        Url = "admin/catalog",        IconClass = "bi bi-collection" },
-        new NavItem { Label = "Verify Tasks",   Url = "admin/verify-tasks",   IconClass = "bi bi-check-circle" },
-        new NavItem { Label = "Settings",       Url = "admin/settings",       IconClass = "bi bi-gear" }
-    };
-
-    // AUDITOR LINKS
-    private List<NavItem> AuditorLinks = new()
-    {
-        new NavItem { Label = "Compliance",      Url = "auditor/compliance",  IconClass = "bi bi-shield-check" },
-        new NavItem { Label = "Audit Trail",     Url = "auditor/audit-trail", IconClass = "bi bi-clock-history" },
-        new NavItem { Label = "License Config",  Url = "auditor/license",     IconClass = "bi bi-file-text" },
-        new NavItem { Label = "Reporting",       Url = "auditor/exporting",   IconClass = "bi bi-box-arrow-up" },
-        new NavItem { Label = "Settings",        Url = "auditor/settings",    IconClass = "bi bi-gear" }
-    };
-
-    // TEAM MEMBER LINKS
-    private List<NavItem> TeamLinks = new()
-    {
-        new NavItem { Label = "Kanban Board",    Url = "team/kanban",         IconClass = "bi bi-kanban" }
-    };
-
-    // CLIENT LINKS
-    private List<NavItem> ClientLinks = new()
-    {
-        new NavItem { Label = "Project Details", Url = "client/project-details", IconClass = "bi bi-info-circle" },
-        new NavItem { Label = "My Assets",       Url = "client/assets",          IconClass = "bi bi-laptop" },
-        new NavItem { Label = "Communication",   Url = "client/communication",   IconClass = "bi bi-chat-text" },
-        new NavItem { Label = "Order Assets",    Url = "client/order-assets",    IconClass = "bi bi-cart" },
-        new NavItem { Label = "Settings",        Url = "client/settings",        IconClass = "bi bi-gear" }
-    };
+    // Why: Logic is handled directly via AuthorizeView, no C# needed here.
+    // This keeps the component purely focused on rendering the correct links.
 }

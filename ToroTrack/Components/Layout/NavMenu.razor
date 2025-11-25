@@ -13,9 +13,9 @@
 
     <div class="nav-divider"></div>
 
-    @* 2. Scrollable Links Area - Now uses the component *@
+    @* 2. Scrollable Links Area *@
     <div class="nav-links-scroll">
-        <NavMenuLinks /> 
+        <NavMenuLinks />
     </div>
 
     @* 3. User Footer (Pinned to Bottom) *@
@@ -29,12 +29,13 @@
                     </div>
                     <div class="user-details">
                         <span class="user-name">@context.User.Identity?.Name</span>
+                        @* LOGIC: Dynamically show role *@
                         <span class="user-role">@GetUserRole(context.User)</span>
                     </div>
                 </div>
 
                 @* LOGOUT BUTTON - Redirects to Welcome Page *@
-                <form action="Account/Logout" method="post">
+                <form action="/Account/Logout" method="post" data-enhance="false">
                     <AntiforgeryToken />
                     <input type="hidden" name="ReturnUrl" value="/" />
                     <button type="submit" class="logout-btn">
@@ -42,18 +43,26 @@
                     </button>
                 </form>
             </Authorized>
+            <NotAuthorized>
+                @* If not logged in, show login button *@
+                <div class="p-2">
+                    <a href="Account/Login" class="btn btn-sm btn-outline-light w-100">Login</a>
+                </div>
+            </NotAuthorized>
         </AuthorizeView>
     </div>
 
 </div>
 
 @code {
+    // Why: Determines the display name for the user's role
     private string GetUserRole(ClaimsPrincipal user)
     {
         if (user.IsInRole("Admin")) return "Administrator";
         if (user.IsInRole("Auditor")) return "Auditor";
         if (user.IsInRole("TeamMember")) return "Team Member";
         if (user.IsInRole("Client")) return "Client";
-        return "User";
+
+        return "User"; // Fallback
     }
 }

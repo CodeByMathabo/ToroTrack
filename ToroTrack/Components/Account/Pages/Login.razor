@@ -1,6 +1,5 @@
 ﻿@page "/Account/Login"
 @layout ToroTrack.Components.Layout.PublicLayout
-@rendermode InteractiveServer
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
@@ -8,6 +7,7 @@
 @using ToroTrack.Data
 
 @inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
 @inject ILogger<Login> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
@@ -74,10 +74,37 @@
         try
         {
             var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
             if (result.Succeeded)
             {
                 Logger.LogInformation("User logged in.");
-                RedirectManager.RedirectTo(ReturnUrl);
+
+                // Role-Based Redirection Logic
+                var user = await UserManager.FindByEmailAsync(Input.Email);
+                if (user != null)
+                {
+                    if (await UserManager.IsInRoleAsync(user, "Admin"))
+                    {
+                        RedirectManager.RedirectTo("admin/overview");
+                    }
+                    else if (await UserManager.IsInRoleAsync(user, "Auditor"))
+                    {
+                        RedirectManager.RedirectTo("auditor/compliance");
+                    }
+                    else if (await UserManager.IsInRoleAsync(user, "TeamMember"))
+                    {
+                        RedirectManager.RedirectTo("team/kanban");
+                    }
+                    else if (await UserManager.IsInRoleAsync(user, "Client"))
+                    {
+                        RedirectManager.RedirectTo("client/project-details");
+                    }
+                    else
+                    {
+                        // Default fallback if no role matches
+                        RedirectManager.RedirectTo(ReturnUrl ?? "/");
+                    }
+                }
             }
             else
             {
@@ -86,6 +113,12 @@
         }
         catch (Exception ex)
         {
+            // Do NOT catch the redirect command!
+            if (ex is NavigationException)
+            {
+                throw;
+            }
+
             Logger.LogError($"Login failed: {ex.Message}");
             errorMessage = "An unexpected error occurred.";
         }

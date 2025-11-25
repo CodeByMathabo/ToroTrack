@@ -27,6 +27,8 @@ builder.Services.AddAuthentication(options =>
 })
     .AddIdentityCookies();
 
+builder.Services.AddAuthorization(); 
+
 // Database Connection
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -71,12 +73,16 @@ app.UseStaticFiles(new StaticFileOptions
     ContentTypeProvider = provider
 });
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseAntiforgery();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
-
 app.MapAdditionalIdentityEndpoints();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode()
+    .DisableAntiforgery();
 
 // SEEDING BLOCK 
 using (var scope = app.Services.CreateScope())
