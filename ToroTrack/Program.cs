@@ -46,6 +46,8 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 // Why: Registering Repository and Service for Dependency Injection
 builder.Services.AddScoped<IInviteRepository, InviteRepository>();
 builder.Services.AddScoped<IInviteService, InviteService>();
+builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
 
 // IDENTITY CONFIGURATION
 builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)

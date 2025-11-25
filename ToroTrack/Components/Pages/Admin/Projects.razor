@@ -2,13 +2,18 @@
 @using Microsoft.AspNetCore.Authorization
 @using System.ComponentModel.DataAnnotations
 @using ToroTrack.Components.Layout
-@*attribute [Authorize(Roles = "Admin")]*@
+@using ToroTrack.Business.Services
+@using ToroTrack.Data
+@using ToroTrack.Models
+@using ToroTrack.Data.Entities
+
+@inject IProjectService ProjectService
+@inject ILogger<Projects> Logger
 @rendermode InteractiveServer
 
 <PageTitle>Projects | Toro Track</PageTitle>
 
 <div class="page-shell">
-    @* UPDATED HEADER: Title - Search - Create Button *@
     <header class="content-header">
         <div class="header-left">
             <h1 class="page-title">Project Management</h1>
@@ -32,75 +37,87 @@
         </div>
     </header>
 
-    @* NEW STAT CARDS *@
+    @* Stat Cards *@
     <div class="stats-container">
         <div class="stat-card">
             <span class="stat-title">Total Projects</span>
-            <span class="stat-number">@DummyProjects.Count</span>
+            <span class="stat-number">@(ProjectList?.Count ?? 0)</span>
         </div>
         <div class="stat-card">
-            <span class="stat-title">Suspended Projects</span>
-            <span class="stat-number">@DummyProjects.Count(p => !p.IsActive)</span>
+            <span class="stat-title">Active Projects</span>
+            <span class="stat-number">@(ProjectList?.Count(p => p.IsActive) ?? 0)</span>
         </div>
         <div class="stat-card">
-            <span class="stat-title">Completed Projects</span>
-            @* Why: Hardcoded for UI demo until automation logic is linked *@
-            <span class="stat-number">0</span>
+            <span class="stat-title">Avg Progress</span>
+            <span class="stat-number">@(ProjectList != null && ProjectList.Any() ? (int)ProjectList.Average(p => p.ProgressPercent) : 0)%</span>
         </div>
     </div>
 
-    @* Data Grid / Table *@
+    @* Data Grid *@
     <div class="table-container">
         <table class="toro-table project-table">
             <thead>
                 <tr>
-                    <th style="width: 25%">Client</th>
-                    <th style="width: 15%">Start Date</th>
-                    <th style="width: 15%">Due Date</th>
-                    <th style="width: 15%">Active Team</th>
-                    <th style="width: 15%">Progress</th>
+                    <th style="width: 20%">Project Name</th>
+                    <th style="width: 20%">Client</th>
+                    <th style="width: 12%">Start Date</th>
+                    <th style="width: 12%">Due Date</th>
+                    <th style="width: 13%">Active Team</th>
+                    <th style="width: 10%">Progress</th>
                     <th style="width: 8%" class="text-center">Status</th>
-                    <th style="width: 7%" class="text-center">Action</th>
+                    <th style="width: 5%" class="text-center">Action</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var project in FilteredProjects)
+                @if (ProjectList == null)
                 {
-                    <tr class="@(project.IsActive ? "" : "row-inactive")">
-                        <td>
-                            <div class="fw-bold">@project.ClientName</div>
-                            <small class="text-muted">@project.ClientEmail</small>
-                        </td>
-                        <td>@project.StartDate.ToString("MMM dd, yyyy")</td>
-                        <td>@project.DueDate.ToString("MMM dd, yyyy")</td>
-                        <td>
-                            <span class="team-badge">@project.CurrentTeam</span>
-                        </td>
-                        <td>
-                            <div class="progress-wrapper">
-                                <div class="progress-bar-bg">
-                                    <div class="progress-fill" style="width: @(project.ProgressPercent)%"></div>
+                    <tr><td colspan="8" class="text-center">Loading projects...</td></tr>
+                }
+                else if (!FilteredProjects.Any())
+                {
+                    <tr><td colspan="8" class="text-center text-muted">No projects found.</td></tr>
+                }
+                else
+                {
+                    @foreach (var project in FilteredProjects)
+                    {
+                        <tr class="@(project.IsActive ? "" : "row-inactive")">
+                            <td class="fw-bold text-primary">@project.Name</td>
+
+                            <td>
+                                <div>@project.ClientName</div>
+                                <small class="text-muted">@project.ClientEmail</small>
+                            </td>
+                            <td>@project.StartDate.ToString("MMM dd, yyyy")</td>
+                            <td>@project.DueDate.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <span class="team-badge">@project.CurrentTeam</span>
+                            </td>
+                            <td>
+                                <div class="progress-wrapper">
+                                    <div class="progress-bar-bg">
+                                        <div class="progress-fill" style="width: @(project.ProgressPercent)%"></div>
+                                    </div>
+                                    <span class="progress-text">@project.ProgressPercent%</span>
                                 </div>
-                                <span class="progress-text">@project.ProgressPercent%</span>
-                            </div>
-                        </td>
-                        <td class="text-center">
-                            @if (project.IsActive)
-                            {
-                                <span class="status-badge active">Active</span>
-                            }
-                            else
-                            {
-                                <span class="status-badge inactive">Suspended</span>
-                            }
-                        </td>
-                        <td class="text-center">
-                            @* Why: Replaced icon with specific button style as requested *@
-                            <button class="btn-edit-custom" @onclick="() => EditProject(project)">
-                                Edit
-                            </button>
-                        </td>
-                    </tr>
+                            </td>
+                            <td class="text-center">
+                                @if (project.IsActive)
+                                {
+                                    <span class="status-badge active">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="status-badge inactive">Suspended</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <button class="btn-edit-custom" @onclick="() => EditProject(project)">
+                                    Edit
+                                </button>
+                            </td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>
@@ -110,6 +127,13 @@
 <ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
     <EditForm Model="InputModel" OnValidSubmit="HandleSubmit" FormName="projectForm">
         <DataAnnotationsValidator />
+
+
+        <div class="form-group">
+            <label class="small-label">Project Name</label>
+            <InputText @bind-Value="InputModel.Name" class="form-control" placeholder="e.g. Cloud Migration Phase 1" />
+            <ValidationMessage For="@(() => InputModel.Name)" class="text-danger" />
+        </div>
 
         <div class="form-group">
             <label class="small-label">Client</label>
@@ -122,9 +146,12 @@
             {
                 <InputSelect @bind-Value="InputModel.SelectedClientId" class="form-select form-control">
                     <option value="">Select Invited Client</option>
-                    @foreach (var client in InvitedClients)
+                    @if (ActiveClients != null)
                     {
-                        <option value="@client.Id">@client.Name (@client.Email)</option>
+                        @foreach (var client in ActiveClients)
+                        {
+                            <option value="@client.Id">@client.FirstName @client.LastName (@client.Email)</option>
+                        }
                     }
                 </InputSelect>
                 <ValidationMessage For="@(() => InputModel.SelectedClientId)" class="text-danger" />
@@ -135,7 +162,7 @@
             <div class="col-md-6">
                 <div class="form-group">
                     <label class="small-label">Start Date</label>
-                    <InputDate @bind-Value="InputModel.StartDate" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    <InputDate @bind-Value="InputModel.StartDate" class="form-control" />
                 </div>
             </div>
             <div class="col-md-6">
@@ -146,9 +173,25 @@
             </div>
         </div>
 
+        @* Error Display Block *@
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger mt-3">
+                <span class="bi bi-exclamation-triangle-fill me-2"></span> @ErrorMessage
+            </div>
+        }
+
         <div class="form-actions mt-4 text-end">
-            <button type="submit" class="btn-primary-toro">
-                <span class="bi bi-save me-2"></span> @(isEditing ? "Save Changes" : "Initialize Project")
+            <button type="submit" class="btn-primary-toro" disabled="@isSaving">
+                @if (isSaving)
+                {
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <span class="bi bi-save me-2"></span> 
+                    @(isEditing ? "Save Changes" : "Initialize Project")
+                }
             </button>
         </div>
     </EditForm>
@@ -157,44 +200,57 @@
 @code {
     private bool isModalVisible = false;
     private bool isEditing = false;
+    private bool isSaving = false;
     private string modalTitle = "";
     private string SearchQuery { get; set; } = "";
+    private string? ErrorMessage { get; set; }
 
-    public class ClientOption
-    {
-        public string Id { get; set; } = "";
-        public string Name { get; set; } = "";
-        public string Email { get; set; } = "";
-    }
-
-    private List<ClientOption> InvitedClients = new()
-    {
-        new ClientOption { Id = "c1", Name = "Law Firm Z", Email = "client@lawfirmz.com" },
-        new ClientOption { Id = "c2", Name = "Retail Corp", Email = "admin@retailcorp.co.za" },
-        new ClientOption { Id = "c3", Name = "Logistics Co", Email = "info@logisticsco.com" }
-    };
+    // Data Holders
+    private List<ProjectViewModel>? ProjectList;
+    private List<ApplicationUser>? ActiveClients;
 
     [SupplyParameterFromForm]
     private ProjectInputModel InputModel { get; set; } = new();
 
-    private List<ProjectViewModel> DummyProjects = new()
+    protected override async Task OnInitializedAsync()
     {
-        new ProjectViewModel { Id = 1, ClientName = "Law Firm Z", ClientEmail = "client@lawfirmz.com", StartDate = DateTime.Now, DueDate = DateTime.Now.AddMonths(3), CurrentTeam = "Network & Security", ProgressPercent = 40, IsActive = true },
-        new ProjectViewModel { Id = 2, ClientName = "Law Firm Z", ClientEmail = "client@lawfirmz.com", StartDate = DateTime.Now.AddDays(12), DueDate = DateTime.Now.AddMonths(1), CurrentTeam = "Infrastructure", ProgressPercent = 0, IsActive = true }
-    };
+        await LoadDataAsync();
+    }
 
-    // Why: Filters the list based on search input
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            var projectsTask = ProjectService.GetAllProjectsAsync();
+            var clientsTask = ProjectService.GetActiveClientsAsync();
+
+            await Task.WhenAll(projectsTask, clientsTask);
+
+            ProjectList = projectsTask.Result;
+            ActiveClients = clientsTask.Result;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load project data");
+        }
+    }
+
     private IEnumerable<ProjectViewModel> FilteredProjects =>
-        string.IsNullOrWhiteSpace(SearchQuery)
-        ? DummyProjects
-        : DummyProjects.Where(p => p.ClientName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) || p.ClientEmail.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+        string.IsNullOrWhiteSpace(SearchQuery) || ProjectList == null
+        ? (ProjectList ?? new List<ProjectViewModel>())
+        : ProjectList.Where(p =>
+            p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+            p.ClientName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+            p.ClientEmail.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
 
     private void OpenCreateModal()
     {
         isEditing = false;
+        ErrorMessage = null;
         modalTitle = "Initialize New Project";
         InputModel = new ProjectInputModel
         {
+            Name = "",
             StartDate = DateTime.Now,
             DueDate = DateTime.Now.AddMonths(1)
         };
@@ -204,13 +260,15 @@
     private void EditProject(ProjectViewModel project)
     {
         isEditing = true;
+        ErrorMessage = null;
         modalTitle = "Edit Project Details";
 
-        var matchedClient = InvitedClients.FirstOrDefault(c => c.Email == project.ClientEmail);
+        var matchedClient = ActiveClients?.FirstOrDefault(c => c.Email == project.ClientEmail);
 
         InputModel = new ProjectInputModel
         {
             Id = project.Id,
+            Name = project.Name,
             SelectedClientId = matchedClient?.Id ?? "",
             StartDate = project.StartDate,
             DueDate = project.DueDate
@@ -218,62 +276,45 @@
         isModalVisible = true;
     }
 
-    private void HandleSubmit()
+    private async Task HandleSubmit()
     {
-        var client = InvitedClients.FirstOrDefault(c => c.Id == InputModel.SelectedClientId);
-        if (client == null) return;
+        isSaving = true;
+        ErrorMessage = null;
 
-        if (isEditing)
+        try
         {
-            var target = DummyProjects.FirstOrDefault(p => p.Id == InputModel.Id);
-            if (target != null)
+            // Force UTC conversion for PostgreSQL compatibility
+            InputModel.StartDate = DateTime.SpecifyKind(InputModel.StartDate, DateTimeKind.Utc);
+            InputModel.DueDate = DateTime.SpecifyKind(InputModel.DueDate, DateTimeKind.Utc);
+
+            if (isEditing)
             {
-                target.StartDate = InputModel.StartDate;
-                target.DueDate = InputModel.DueDate;
+                await ProjectService.UpdateProjectAsync(InputModel);
             }
-        }
-        else
-        {
-            var newProject = new ProjectViewModel
+            else
             {
-                Id = DummyProjects.Count + 1,
-                ClientName = client.Name,
-                ClientEmail = client.Email,
-                StartDate = InputModel.StartDate,
-                DueDate = InputModel.DueDate,
-                CurrentTeam = "Infrastructure",
-                ProgressPercent = 0,
-                IsActive = true
-            };
-            DummyProjects.Add(newProject);
-        }
+                await ProjectService.CreateProjectAsync(InputModel);
+            }
 
-        isModalVisible = false;
+            isModalVisible = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving project");
+            // display the real database error
+            var realError = ex.InnerException?.Message ?? ex.Message;
+            ErrorMessage = $"Database Error: {realError}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
     private string GetClientNameById(string id)
     {
-        return InvitedClients.FirstOrDefault(c => c.Id == id)?.Name ?? "Unknown";
-    }
-
-    public class ProjectInputModel
-    {
-        public int Id { get; set; }
-        [Required(ErrorMessage = "Please select an invited client.")]
-        public string SelectedClientId { get; set; } = "";
-        public DateTime StartDate { get; set; }
-        public DateTime DueDate { get; set; }
-    }
-
-    public class ProjectViewModel
-    {
-        public int Id { get; set; }
-        public string ClientName { get; set; } = "";
-        public string ClientEmail { get; set; } = "";
-        public DateTime StartDate { get; set; }
-        public DateTime DueDate { get; set; }
-        public string CurrentTeam { get; set; } = "";
-        public int ProgressPercent { get; set; }
-        public bool IsActive { get; set; }
+        var c = ActiveClients?.FirstOrDefault(u => u.Id == id);
+        return c != null ? $"{c.FirstName} {c.LastName}" : "Unknown";
     }
 }
