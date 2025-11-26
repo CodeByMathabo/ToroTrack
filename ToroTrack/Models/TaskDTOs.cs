@@ -26,8 +26,6 @@ namespace ToroTrack.Models
         [Required(ErrorMessage = "Project is required")]
         public int ProjectId { get; set; }
 
-        // REMOVED: [Required] StartDate. 
-        // Logic change: System sets this automatically.
         public string? AssignedToId { get; set; }
     }
 

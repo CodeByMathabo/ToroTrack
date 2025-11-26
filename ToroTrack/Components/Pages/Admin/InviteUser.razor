@@ -15,7 +15,7 @@
     <header class="content-header">
         <div>
             <h1 class="page-title">Invite Users</h1>
-            <p class="page-subtitle">Send invitations to new Admins, Auditors, or Clients.</p>
+            <p class="page-subtitle">Send invitations to new Admins, Auditors, Clients, or Team Members.</p>
         </div>
     </header>
 
@@ -33,7 +33,10 @@
                         <option value="Admin">Administrator</option>
                         <option value="Auditor">Auditor</option>
                         <option value="Client">Client</option>
+                        @* ADDED: Team Member Option *@
+                        <option value="TeamMember">Team Member</option>
                     </InputSelect>
+                    <ValidationMessage For="@(() => InputModel.Role)" class="text-danger" />
                 </div>
 
                 <div class="form-group">
@@ -42,6 +45,7 @@
                     <ValidationMessage For="@(() => InputModel.Email)" class="text-danger" />
                 </div>
 
+                @* SECTION FOR CLIENTS *@
                 @if (InputModel.Role == "Client")
                 {
                     <div class="client-fields-group">
@@ -49,12 +53,10 @@
                         <div class="form-group">
                             <label class="small-label">Full Name</label>
                             <InputText @bind-Value="InputModel.FullName" class="form-control" placeholder="Themba Kobe" />
-                            <ValidationMessage For="@(() => InputModel.FullName)" class="text-danger" />
                         </div>
                         <div class="form-group">
                             <label class="small-label">Company Name</label>
                             <InputText @bind-Value="InputModel.CompanyName" class="form-control" placeholder="Acme Corp" />
-                            <ValidationMessage For="@(() => InputModel.CompanyName)" class="text-danger" />
                         </div>
                         <div class="form-row">
                              <div class="form-group half-width">
@@ -65,6 +67,33 @@
                                 <label class="small-label">Client Job Role</label>
                                 <InputText @bind-Value="InputModel.ClientJobRole" class="form-control" placeholder="e.g. Founder" />
                             </div>
+                        </div>
+                    </div>
+                }
+
+                @* ADDED: SECTION FOR TEAM MEMBERS *@
+                @if (InputModel.Role == "TeamMember")
+                {
+                    <div class="client-fields-group">
+                        <h4 class="section-divider">Team Member Details</h4>
+                        <div class="form-group">
+                            <label class="small-label">Full Name</label>
+                            <InputText @bind-Value="InputModel.FullName" class="form-control" placeholder="John Doe" />
+                             <ValidationMessage For="@(() => InputModel.FullName)" class="text-danger" />
+                        </div>
+                        <div class="form-group">
+                            <label class="small-label">Assigned Job Role (RBAC)</label>
+                            @* We reuse 'ClientJobRole' property to store the internal Job Title. 
+                               The InviteService maps this to 'JobRole' in the User table automatically. *@
+                            <InputSelect @bind-Value="InputModel.ClientJobRole" class="form-select form-control">
+                                <option value="">-- Select Job Title --</option>
+                                <option value="Logistics Coordinator">Logistics Coordinator</option>
+                                <option value="Platform Engineer">Platform Engineer</option>
+                                <option value="Network Security Engineer">Network Security Engineer</option>
+                                <option value="Cloud Engineer">Cloud Engineer</option>
+                                <option value="Modern Workplace Engineer">Modern Workplace Engineer</option>
+                            </InputSelect>
+                             <small class="text-muted">This determines their permissions on the Kanban board.</small>
                         </div>
                     </div>
                 }
@@ -123,7 +152,12 @@
                             <tr>
                                 <td>
                                     <div class="fw-bold">@invite.Email</div>
-                                    @if (!string.IsNullOrEmpty(invite.CompanyName))
+                                    @if (!string.IsNullOrEmpty(invite.ClientJobRole) && invite.Role == "TeamMember")
+                                    {
+                                        // Show the Job Role for Team Members so Admin knows who they invited
+                                        <small class="text-muted">@invite.ClientJobRole</small>
+                                    }
+                                    else if (!string.IsNullOrEmpty(invite.CompanyName))
                                     {
                                         <small class="text-muted">@invite.CompanyName</small>
                                     }
@@ -132,7 +166,7 @@
                                 <td>@invite.DateInvited.ToString("MMM dd, yyyy")</td>
                                 <td><span class="status-pending">Pending</span></td>
                                 <td class="text-center">
-                                    <button class="btn-revoke" @onclick="() => RevokeInvite(invite.Id)">
+                                     <button class="btn-revoke" @onclick="() => RevokeInvite(invite.Id)">
                                         Revoke
                                     </button>
                                 </td>
@@ -178,6 +212,14 @@
 
         try
         {
+            // Basic Validation Logic
+            if (InputModel.Role == "TeamMember" && string.IsNullOrEmpty(InputModel.ClientJobRole))
+            {
+                 ErrorMessage = "Please select a Job Title for the Team Member.";
+                 IsProcessing = false;
+                 return;
+            }
+
             var inviteEntity = new PendingInvite
             {
                 Email = InputModel.Email,
@@ -185,13 +227,14 @@
                 FullName = InputModel.FullName,
                 CompanyName = InputModel.CompanyName,
                 ContactNumber = InputModel.ContactNumber,
+                // This property maps to 'JobRole' in the ApplicationUser table
                 ClientJobRole = InputModel.ClientJobRole
             };
 
             await InviteService.SendInviteAsync(inviteEntity);
             
             SuccessMessage = "Invitation sent successfully.";
-            InputModel = new InviteFormModel();
+            InputModel = new InviteFormModel(); // Reset form
             await LoadInvitesAsync();
         }
         catch (Exception ex)

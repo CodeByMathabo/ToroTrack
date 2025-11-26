@@ -38,22 +38,24 @@ namespace ToroTrack.Business.Services
         {
             var entities = await _repository.GetAllProjectsAsync();
 
-            return entities.Select(p => new ProjectViewModel
-            {
-                Id = p.Id,
-                Name = p.Name,
-                ClientName = p.Client != null ? $"{p.Client.FirstName} {p.Client.LastName}" : "Unknown",
-                ClientEmail = p.Client?.Email ?? "N/A",
-                StartDate = p.StartDate.ToLocalTime(),
-                DueDate = (p.EndDate ?? DateTime.Now).ToLocalTime(),
+            return entities.Select(p => {
+                int totalTasks = p.Tasks.Count;
+                int completedTasks = p.Tasks.Count(t => t.Status == "Verified" || t.Status == "Done");
 
-                // READ: Directly from the new database column
-                CurrentTeam = p.AssignedTeam,
+                int progress = totalTasks > 0 ? (int)((double)completedTasks / totalTasks * 100) : 0;
 
-                ProgressPercent = p.Tasks.Any()
-                    ? (int)((double)p.Tasks.Count(t => t.Status == "Verified") / p.Tasks.Count * 100)
-                    : 0,
-                IsActive = p.Status == "Active"
+                return new ProjectViewModel
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    ClientName = p.Client != null ? $"{p.Client.FirstName} {p.Client.LastName}" : "Unknown",
+                    ClientEmail = p.Client?.Email ?? "N/A",
+                    StartDate = p.StartDate.ToLocalTime(),
+                    DueDate = (p.EndDate ?? DateTime.Now).ToLocalTime(),
+                    CurrentTeam = p.AssignedTeam,
+                    ProgressPercent = progress,
+                    IsActive = p.Status == "Active"
+                };
             }).ToList();
         }
 
@@ -66,15 +68,13 @@ namespace ToroTrack.Business.Services
         {
             _logger.LogInformation("Creating new project: {Name} for Team: {Team}", model.Name, model.AssignedTeam);
 
+            // Create the Project Record ONLY
             var entity = new Project
             {
                 Name = model.Name,
                 Description = "Initialized via Admin Portal",
                 ClientId = model.SelectedClientId,
-
-                // SAVE: Persist the Admin's choice
                 AssignedTeam = model.AssignedTeam,
-
                 StartDate = model.StartDate.ToUniversalTime(),
                 EndDate = model.DueDate.ToUniversalTime(),
                 Status = "Active"
@@ -82,25 +82,6 @@ namespace ToroTrack.Business.Services
 
             await _repository.AddProjectAsync(entity);
 
-            // AUTOMATION: Create Stage 1 Task assigned to the CHOSEN team
-            using var context = _dbFactory.CreateDbContext();
-
-            var initialTask = new ProjectTask
-            {
-                ProjectId = entity.Id,
-                Title = "Stage 1: Initial Setup & Planning",
-                Description = $"Initial phase execution for {model.AssignedTeam}. Please review project scope.",
-                Status = "Backlog",
-                Priority = "High",
-
-                // Task is assigned to the selected team
-                AssignedToId = model.AssignedTeam,
-
-                DueDate = model.StartDate.AddDays(5).ToUniversalTime()
-            };
-
-            context.ProjectTasks.Add(initialTask);
-            await context.SaveChangesAsync();
         }
 
         public async Task UpdateProjectAsync(ProjectInputModel model)
@@ -109,11 +90,74 @@ namespace ToroTrack.Business.Services
             if (entity == null) throw new Exception("Project not found");
 
             entity.Name = model.Name;
-            entity.AssignedTeam = model.AssignedTeam; // Allow updates
+            entity.AssignedTeam = model.AssignedTeam;
             entity.StartDate = model.StartDate.ToUniversalTime();
             entity.EndDate = model.DueDate.ToUniversalTime();
 
             await _repository.UpdateProjectAsync(entity);
+        }
+
+        // --- WORKFLOW DEFINITIONS ---
+        private List<(string Title, string Description)> GetWorkflowForTeam(string teamName)
+        {
+            return teamName switch
+            {
+                "Logistics Coordinator" => new()
+                {
+                    // Keyword: "Catalog" -> Links to /admin/catalog
+                    ("Stage 1: Catalog Verification", "Review the 'Catalog' page. Ensure stock levels are accurate before client ordering begins."),
+                    
+                    // Keyword: "Order" -> Links to /admin/verify (or Orders page)
+                    ("Stage 2: Order Monitoring", "Monitor incoming requests on the 'Verify Tasks' or Orders page."),
+                    
+                    // Generic task (No link)
+                    ("Stage 3: Stock Allocation", "Physically set aside hardware in the warehouse."),
+                    
+                    // Keyword: "Assets" -> Links to /client/assets (or Admin view of assets)
+                    ("Stage 4: Asset Registration", "Register serial numbers in the 'Assets' system."),
+
+                    ("Stage 5: Final Dispatch", "Coordinate courier pickup and mark project as deployed.")
+                },
+
+                "Platform Engineer" => new()
+                {
+                    ("Stage 1: Infrastructure Audit", "Assess current on-premise server environment."),
+                    ("Stage 2: Virtualization Setup", "Configure Hyper-V/VMware host environment."),
+                    ("Stage 3: Server Provisioning", "Deploy Windows Server instances and configure AD."),
+                    ("Stage 4: Backup Configuration", "Setup local and offsite backup routines."),
+                    ("Stage 5: Disaster Recovery Test", "Simulate failure and verify recovery time objectives.")
+                },
+                "Network Security Engineer" => new()
+                {
+                    ("Stage 1: Network Mapping", "Document existing IP schema and topology."),
+                    ("Stage 2: Firewall Configuration", "Configure VLANs and inbound/outbound rules."),
+                    ("Stage 3: VPN Tunneling", "Setup secure Site-to-Site or Client VPNs."),
+                    ("Stage 4: Penetration Testing", "Run vulnerability scan and patch critical risks."),
+                    ("Stage 5: Security Sign-off", "Generate security report and obtain client approval.")
+                },
+                "Cloud Engineer" => new()
+                {
+                    ("Stage 1: Tenant Initialization", "Setup Azure/AWS tenant and billing alerts."),
+                    ("Stage 2: Identity Sync", "Configure Azure AD Connect for user synchronization."),
+                    ("Stage 3: Data Migration", "Execute lift-and-shift of file server data to cloud."),
+                    ("Stage 4: Cutover", "Switch DNS records and go live."),
+                    ("Stage 5: Post-Migration Support", "Monitor logs for 48 hours and resolve sync errors.")
+                },
+                "Modern Workplace Engineer" => new()
+                {
+                    ("Stage 1: M365 Licensing", "Assign Business Premium licenses to users."),
+                    ("Stage 2: Email Migration", "Migrate Exchange mailboxes to Exchange Online."),
+                    ("Stage 3: Endpoint Manager", "Enroll devices in Intune/Autopilot."),
+                    ("Stage 4: Policy Deployment", "Push security policies (BitLocker, MFA)."),
+                    ("Stage 5: User Training", "Conduct Teams/OneDrive training session.")
+                },
+                _ => new()
+                {
+                    ("Stage 1: Initiation", "Define project scope."),
+                    ("Stage 2: Execution", "Perform core project tasks."),
+                    ("Stage 3: Closure", "Finalize project.")
+                }
+            };
         }
     }
 }

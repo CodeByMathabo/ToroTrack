@@ -38,10 +38,11 @@ namespace ToroTrack.Business.Services
                 ProofUrl = t.ProofUrl,
                 ProjectName = t.Project?.Name ?? "Unknown Project",
 
-                // Use the ID directly as the Name (since it stores the Team Name) 
+                // Use the ID directly as it now stores the Team Name
                 AssignedToName = t.AssignedToId,
 
-                DueDate = t.DueDate
+                DueDate = t.DueDate,
+                StartDate = t.StartDate
             }).ToList();
         }
 
@@ -54,12 +55,9 @@ namespace ToroTrack.Business.Services
                 Title = model.Title,
                 Description = model.Description,
                 ProjectId = model.ProjectId,
-                AssignedToId = model.AssignedToId,
+                AssignedToId = model.AssignedToId ?? "Unassigned",
                 Status = "Backlog",
-
                 StartDate = utcStart,
-
-                // STRICT RULE: Max 5 Days to complete
                 DueDate = utcStart.AddDays(5)
             };
 

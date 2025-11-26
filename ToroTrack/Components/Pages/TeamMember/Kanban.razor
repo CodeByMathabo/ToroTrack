@@ -1,15 +1,24 @@
 ﻿@page "/team/kanban"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
 @using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @using ToroTrack.Components.Layout
 @using ToroTrack.Data
 @using ToroTrack.Data.Entities
+@using ToroTrack.Models
+
 @rendermode InteractiveServer
+
+@* Enforce Security: Only Team Members and Admins can enter *@
+@attribute [Authorize(Roles = "Admin, TeamMember")]
 
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject ILogger<Kanban> Logger
 @inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Kanban Board | Toro Track</PageTitle>
 
@@ -43,26 +52,17 @@
 
         <div class="header-right d-flex gap-2 align-items-center">
             <div class="stage-indicator">
-                <span class="stage-label">My Role:</span>
-                <span class="stage-value">@CurrentUserRole</span>
+                <span class="stage-label">My Job:</span>
+                <span class="stage-value">@CurrentUserJobRole</span>
             </div>
 
-            @* Only show 'New Task' if user is allowed to create tasks (Optional: or keep open for all) *@
             <button class="btn-primary-action" @onclick="OpenCreateModal">
                 <span class="bi bi-plus-lg"></span> New Task
             </button>
         </div>
     </header>
 
-    @* TEAM FILTERS: Updated to also act as a View Filter *@
-    <div class="team-filter-bar">
-        <button class="tab-btn @(CurrentTeamFilter == "All" ? "active" : "")" @onclick='() => FilterByTeam("All")'>All Roles</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Logistics Coordinator" ? "active" : "")" @onclick='() => FilterByTeam("Logistics Coordinator")'>Logistics</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Platform Engineer" ? "active" : "")" @onclick='() => FilterByTeam("Platform Engineer")'>Platform</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Network Security Engineer" ? "active" : "")" @onclick='() => FilterByTeam("Network Security Engineer")'>NetSec</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Cloud Engineer" ? "active" : "")" @onclick='() => FilterByTeam("Cloud Engineer")'>Cloud</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Modern Workplace Engineer" ? "active" : "")" @onclick='() => FilterByTeam("Modern Workplace Engineer")'>Modern Work</button>
-    </div>
+    @* FILTER BAR REMOVED - 'My Job' indicator handles context *@
 
     @if (!string.IsNullOrEmpty(ErrorMessage))
     {
@@ -84,8 +84,16 @@
                 {
                     <div class="kanban-card">
                         @RenderCardContent(task)
+
+                        @* Smart Action Button *@
+                        @if (!string.IsNullOrEmpty(GetActionLink(task.Title)))
+                        {
+                            <a href="@GetActionLink(task.Title)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2" style="font-size: 0.75rem; border-style: dashed;">
+                                <span class="bi bi-box-arrow-up-right"></span> Go to Task Page
+                            </a>
+                        }
+
                         <div class="card-actions">
-                            @* RBAC CHECK: Only show move button if allowed *@
                             @if (CanInteractWithTask(task))
                             {
                                 <button class="btn-move" @onclick='() => MoveTask(task, "Doing")'>
@@ -113,6 +121,15 @@
                 {
                     <div class="kanban-card doing-card">
                         @RenderCardContent(task)
+
+                        @* Smart Action Button *@
+                        @if (!string.IsNullOrEmpty(GetActionLink(task.Title)))
+                        {
+                            <a href="@GetActionLink(task.Title)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2" style="font-size: 0.75rem; border-style: dashed;">
+                                <span class="bi bi-box-arrow-up-right"></span> Go to Task Page
+                            </a>
+                        }
+
                         <div class="card-actions">
                             @if (CanInteractWithTask(task))
                             {
@@ -189,49 +206,50 @@
 
         <div class="alert alert-info py-2 px-3 small mb-3">
             <i class="bi bi-clock-history me-1"></i>
-            <strong>Policy:</strong> Teams have a maximum of <strong>5 Days</strong> to complete this task once started.
+            <strong>Policy:</strong> The 5-day timer starts <strong>NOW</strong>. Only create this task if you are ready to begin.
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="small-label">Select Stage</label>
+            <select class="form-select task-input-modern" @onchange="OnStageSelected">
+                <option value="">-- Select a Stage to Start --</option>
+                @foreach (var stage in StageOptions)
+                {
+                    <option value="@stage.Title">@stage.Title</option>
+                }
+                <option value="Custom">Custom / Ad-hoc Task</option>
+            </select>
         </div>
 
         <div class="form-group mb-3">
             <label class="small-label">Task Title</label>
-            <input @bind="NewTaskModel.Title" class="form-control task-input-modern" placeholder="e.g. Configure VNET Peering" />
+            <input @bind="NewTaskModel.Title" class="form-control task-input-modern"
+                   placeholder="Task Title will appear here..."
+                   readonly="@(!IsCustomTask)" />
         </div>
 
         <div class="form-group mb-3">
             <label class="small-label">Description</label>
-            <textarea @bind="NewTaskModel.Description" class="form-control task-input-modern" rows="3" placeholder="Details..."></textarea>
+            <textarea @bind="NewTaskModel.Description" class="form-control task-input-modern" rows="3"
+                      placeholder="Task details..."
+                      readonly="@(!IsCustomTask)"></textarea>
         </div>
 
         <div class="row">
             <div class="col-6 form-group mb-3">
                 <label class="small-label">Start Date</label>
                 <input type="text" class="form-control task-input-modern bg-light" value="@DateTime.Now.ToShortDateString()" readonly />
-                <small class="text-muted" style="font-size:0.7rem">Automatic</small>
+                <small class="text-muted" style="font-size:0.7rem">Starts Today</small>
             </div>
             <div class="col-6 form-group mb-3">
                 <label class="small-label">Role / Team</label>
-                @* If regular user, force their role. If Admin, allow selection *@
-                @if (CurrentUserRole == "Admin")
-                {
-                    <select @bind="NewTaskModel.AssignedToId" class="form-select task-input-modern">
-                        <option value="Logistics Coordinator">Logistics Coordinator</option>
-                        <option value="Platform Engineer">Platform Engineer</option>
-                        <option value="Network Security Engineer">Network Security Engineer</option>
-                        <option value="Cloud Engineer">Cloud Engineer</option>
-                        <option value="Modern Workplace Engineer">Modern Workplace Engineer</option>
-                    </select>
-                }
-                else
-                {
-                    <input type="text" class="form-control task-input-modern" value="@NewTaskModel.AssignedToId" disabled />
-                    <small class="text-muted">Locked to your role</small>
-                }
+                <input type="text" class="form-control task-input-modern bg-light" value="@NewTaskModel.AssignedToId" disabled />
             </div>
         </div>
 
         <div class="d-flex justify-content-end gap-2 border-top pt-3">
             <button class="btn-cancel-task" @onclick="() => isCreateModalVisible = false">Cancel</button>
-            <button class="btn-save-task" @onclick="CreateTaskAsync">Create Task</button>
+            <button class="btn-save-task" @onclick="CreateTaskAsync">Start Task</button>
         </div>
     </div>
 </ToroModal>
@@ -246,6 +264,15 @@
             <input @bind="ProofUrlInput" class="form-control task-input-compact" placeholder="https://..." />
         </div>
 
+        <div class="form-group mb-3">
+            <label class="small-label">Or Upload File</label>
+            <InputFile OnChange="HandleFileSelected" class="form-control task-input-compact" />
+            @if (!string.IsNullOrEmpty(ProofModel.FileName))
+            {
+                <div class="text-success small mt-1"><span class="bi bi-check2"></span> @ProofModel.FileName attached</div>
+            }
+        </div>
+
         <div class="d-flex justify-content-end gap-2 mt-3">
             <button class="btn-cancel-task" @onclick="() => isProofModalVisible = false">Cancel</button>
             <button class="btn-save-task" @onclick="SubmitProofAsync">Submit & Complete</button>
@@ -254,27 +281,33 @@
 </ToroModal>
 
 @code {
-    // State
+    // --- State & Auth ---
     private List<Project> Projects = new();
     private List<ProjectTask> Tasks = new();
     private List<Project> VisibleProjects = new();
 
-    private string CurrentTeamFilter = "All"; // Default view
+    private string CurrentTeamFilter = "All";
     private int? SelectedProjectId = null;
     private string ErrorMessage = "";
 
-    // Auth State
-    private string CurrentUserRole = "Loading...";
+    private string CurrentUserJobRole = "Loading...";
+    private string CurrentUserIdentityRole = "";
     private bool IsAdmin = false;
 
-    // Models & Modals
+    // --- Models & UI Logic ---
     private bool isCreateModalVisible = false;
     private bool isProofModalVisible = false;
+
     private ProjectTask NewTaskModel = new();
     private ProjectTask? TaskToComplete;
     private string ProofUrlInput = "";
 
-    // Computed Properties
+    private List<(string Title, string Description)> StageOptions = new();
+    private bool IsCustomTask = false;
+
+    private class ProofOfWork { public string FileName { get; set; } = ""; }
+    private ProofOfWork ProofModel = new();
+
     private IEnumerable<ProjectTask> FilteredTasks => Tasks
         .Where(t => SelectedProjectId == null || t.ProjectId == SelectedProjectId)
         .Where(t => CurrentTeamFilter == "All" || t.AssignedToId == CurrentTeamFilter);
@@ -288,37 +321,38 @@
     private async Task LoadUserRoleAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        var principal = authState.User;
 
-        if (user.Identity != null && user.Identity.IsAuthenticated)
+        if (principal.Identity?.IsAuthenticated == true)
         {
-            // Assuming roles are stored as claims.
-            // In a real scenario, you might Map "Role Claim" -> "Job Title" string
-            // For this demo, we assume the Role Claim matches the Job Title or we default to a safe value.
-
-            if (user.IsInRole("Admin"))
+            if (principal.IsInRole("Admin"))
             {
                 IsAdmin = true;
-                CurrentUserRole = "Admin";
+                CurrentUserIdentityRole = "Admin";
+                CurrentUserJobRole = "Admin";
             }
-            else
+            else if (principal.IsInRole("TeamMember"))
             {
-                // Find the role claim that matches our job titles
-                var roleClaim = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
-                CurrentUserRole = roleClaim?.Value ?? "Guest";
+                CurrentUserIdentityRole = "TeamMember";
+                try
+                {
+                    var user = await UserManager.GetUserAsync(principal);
+                    CurrentUserJobRole = user?.JobRole ?? "Unassigned";
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to load user details");
+                    CurrentUserJobRole = "Error";
+                }
             }
         }
     }
 
-    // --- RBAC CORE LOGIC ---
     private bool CanInteractWithTask(ProjectTask task)
     {
-        if (IsAdmin) return true; // Admins can do anything
-
-        // Users can only touch tasks assigned to their specific Role
-        return task.AssignedToId == CurrentUserRole;
+        if (IsAdmin) return true;
+        return task.AssignedToId == CurrentUserJobRole;
     }
-    // -----------------------
 
     private async Task LoadDataAsync()
     {
@@ -335,10 +369,9 @@
             Tasks = Projects.SelectMany(p => p.Tasks).ToList();
             VisibleProjects = Projects;
 
-            // Auto-filter if not Admin
-            if (!IsAdmin && CurrentUserRole != "Guest")
+            if (!IsAdmin && CurrentUserJobRole != "Unassigned" && CurrentUserJobRole != "Loading...")
             {
-                CurrentTeamFilter = CurrentUserRole;
+                CurrentTeamFilter = CurrentUserJobRole;
             }
         }
         catch (Exception ex)
@@ -346,12 +379,6 @@
             ErrorMessage = $"Error loading data: {ex.Message}";
             Logger.LogError(ex, "Failed to load Kanban data");
         }
-    }
-
-    private void FilterByTeam(string team)
-    {
-        CurrentTeamFilter = team;
-        StateHasChanged();
     }
 
     private void OnProjectSelected(ChangeEventArgs e)
@@ -362,7 +389,7 @@
 
     private string GetProjectName(int? id) => Projects.FirstOrDefault(p => p.Id == id)?.Name ?? "Unknown";
 
-    // --- CREATE TASK ---
+    // --- NEW TASK LOGIC ---
     private void OpenCreateModal()
     {
         if (SelectedProjectId == null)
@@ -371,18 +398,89 @@
             return;
         }
 
-        // RBAC CHECK: Can this user create tasks?
-        // (Assuming all team members can create tasks, but we force the assignment)
-
         ErrorMessage = "";
         NewTaskModel = new ProjectTask
         {
             ProjectId = SelectedProjectId.Value,
             Status = "Backlog",
-            // If not admin, force assignment to themselves
-            AssignedToId = IsAdmin ? "Platform Engineer" : CurrentUserRole
+            // Always assign to user's role (or Admin default)
+            AssignedToId = IsAdmin ? "Platform Engineer" : CurrentUserJobRole
         };
+
+        LoadStagesForRole(NewTaskModel.AssignedToId);
+        IsCustomTask = false;
+
         isCreateModalVisible = true;
+    }
+
+    private void OnStageSelected(ChangeEventArgs e)
+    {
+        var selectedTitle = e.Value?.ToString();
+
+        if (selectedTitle == "Custom")
+        {
+            IsCustomTask = true;
+            NewTaskModel.Title = "";
+            NewTaskModel.Description = "";
+        }
+        else
+        {
+            IsCustomTask = false;
+            var stage = StageOptions.FirstOrDefault(s => s.Title == selectedTitle);
+            if (stage != default)
+            {
+                NewTaskModel.Title = stage.Title;
+                NewTaskModel.Description = stage.Description;
+            }
+        }
+    }
+
+    private void LoadStagesForRole(string role)
+    {
+        StageOptions = role switch
+        {
+            "Logistics Coordinator" => new()
+            {
+                ("Stage 1: Catalog Verification", "Review the 'Catalog' page. Ensure stock levels are accurate."),
+                ("Stage 2: Order Monitoring", "Monitor incoming requests on the 'Verify Tasks' or Orders page."),
+                ("Stage 3: Stock Allocation", "Physically set aside hardware in the warehouse."),
+                ("Stage 4: Asset Registration", "Register serial numbers in the 'Assets' system."),
+                ("Stage 5: Final Dispatch", "Coordinate courier pickup and mark project as deployed.")
+            },
+            "Platform Engineer" => new()
+            {
+                ("Stage 1: Infrastructure Audit", "Assess current on-premise server environment."),
+                ("Stage 2: Virtualization Setup", "Configure Hyper-V/VMware host environment."),
+                ("Stage 3: Server Provisioning", "Deploy Windows Server instances."),
+                ("Stage 4: Backup Configuration", "Setup local and offsite backup routines."),
+                ("Stage 5: Disaster Recovery Test", "Simulate failure and verify recovery.")
+            },
+            "Network Security Engineer" => new()
+            {
+                ("Stage 1: Network Mapping", "Document existing IP schema and topology."),
+                ("Stage 2: Firewall Configuration", "Configure VLANs and inbound/outbound rules."),
+                ("Stage 3: VPN Tunneling", "Setup secure Site-to-Site or Client VPNs."),
+                ("Stage 4: Penetration Testing", "Run vulnerability scan and patch critical risks."),
+                ("Stage 5: Security Sign-off", "Generate security report and obtain client approval.")
+            },
+            "Cloud Engineer" => new()
+            {
+                ("Stage 1: Tenant Initialization", "Setup Azure/AWS tenant and billing alerts."),
+                ("Stage 2: Identity Sync", "Configure Azure AD Connect for user synchronization."),
+                ("Stage 3: Data Migration", "Execute lift-and-shift of file server data to cloud."),
+                ("Stage 4: Cutover", "Switch DNS records and go live."),
+                ("Stage 5: Post-Migration Support", "Monitor logs for 48 hours and resolve sync errors.")
+            },
+            "Modern Workplace Engineer" => new()
+            {
+                ("Stage 1: M365 Licensing", "Assign Business Premium licenses to users."),
+                ("Stage 2: Email Migration", "Migrate Exchange mailboxes to Exchange Online."),
+                ("Stage 3: Endpoint Manager", "Enroll devices in Intune/Autopilot."),
+                ("Stage 4: Policy Deployment", "Push security policies (BitLocker, MFA)."),
+                ("Stage 5: User Training", "Conduct Teams/OneDrive training session.")
+            },
+            _ => new()
+        };
     }
 
     private async Task CreateTaskAsync()
@@ -392,7 +490,9 @@
         try
         {
             using var context = DbFactory.CreateDbContext();
-            // StartDate is handled in Repository or defaulted in Entity
+            NewTaskModel.StartDate = DateTime.UtcNow;
+            NewTaskModel.DueDate = DateTime.UtcNow.AddDays(5);
+
             context.ProjectTasks.Add(NewTaskModel);
             await context.SaveChangesAsync();
 
@@ -405,10 +505,8 @@
         }
     }
 
-    // --- MOVE / UPDATE STATUS ---
     private async Task MoveTask(ProjectTask task, string newStatus)
     {
-        // Double Check Logic (Security)
         if (!CanInteractWithTask(task))
         {
             ErrorMessage = "You are not authorized to move this task.";
@@ -429,19 +527,20 @@
         catch (Exception ex)
         {
             ErrorMessage = "Failed to move task.";
-            Logger.LogError(ex, "Move Task Error");
         }
     }
 
-    // --- COMPLETE / PROOF ---
     private void InitiateCompleteTask(ProjectTask task)
     {
-        // Double Check Logic (Security)
         if (!CanInteractWithTask(task)) return;
-
         TaskToComplete = task;
         ProofUrlInput = "";
         isProofModalVisible = true;
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        ProofModel.FileName = e.File.Name;
     }
 
     private async Task SubmitProofAsync()
@@ -455,9 +554,8 @@
             if (dbTask != null)
             {
                 dbTask.Status = "PendingReview";
-                dbTask.ProofUrl = ProofUrlInput;
+                dbTask.ProofUrl = string.IsNullOrWhiteSpace(ProofUrlInput) ? ProofModel.FileName : ProofUrlInput;
                 await context.SaveChangesAsync();
-
                 isProofModalVisible = false;
                 await LoadDataAsync();
             }
@@ -482,6 +580,14 @@
             <p class="task-desc">@task.Description</p>
         </div>
     };
+
+    private string? GetActionLink(string title)
+    {
+        if (title.Contains("Catalog", StringComparison.OrdinalIgnoreCase)) return "/admin/catalog";
+        if (title.Contains("Order", StringComparison.OrdinalIgnoreCase) || title.Contains("Verify", StringComparison.OrdinalIgnoreCase)) return "/admin/verify";
+        if (title.Contains("Asset", StringComparison.OrdinalIgnoreCase) && !title.Contains("Tag", StringComparison.OrdinalIgnoreCase)) return "/admin/catalog";
+        return null;
+    }
 
     private string GetTeamShortCode(string? fullTeam) => fullTeam switch
     {
