@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ToroTrack.Data;
@@ -11,9 +12,11 @@ using ToroTrack.Data;
 namespace ToroTrack.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251126122710_AddTasksAndDates")]
+    partial class AddTasksAndDates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -317,6 +320,10 @@ namespace ToroTrack.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CatalogItemId");
+
+                    b.HasIndex("ClientId");
+
                     b.ToTable("ClientAssets");
                 });
 
@@ -368,10 +375,6 @@ namespace ToroTrack.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AssignedTeam")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("ClientId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -410,11 +413,7 @@ namespace ToroTrack.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AssignedToId")
-                        .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<DateTime?>("CompletedDate")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -422,10 +421,6 @@ namespace ToroTrack.Migrations
 
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<int>("ProjectId")
                         .HasColumnType("integer");
@@ -445,6 +440,8 @@ namespace ToroTrack.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedToId");
 
                     b.HasIndex("ProjectId");
 
@@ -502,6 +499,25 @@ namespace ToroTrack.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ToroTrack.Data.Entities.ClientAsset", b =>
+                {
+                    b.HasOne("ToroTrack.Data.Entities.CatalogItem", "CatalogItem")
+                        .WithMany()
+                        .HasForeignKey("CatalogItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ToroTrack.Data.ApplicationUser", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CatalogItem");
+
+                    b.Navigation("Client");
+                });
+
             modelBuilder.Entity("ToroTrack.Data.Entities.Project", b =>
                 {
                     b.HasOne("ToroTrack.Data.ApplicationUser", "Client")
@@ -515,11 +531,17 @@ namespace ToroTrack.Migrations
 
             modelBuilder.Entity("ToroTrack.Data.Entities.ProjectTask", b =>
                 {
+                    b.HasOne("ToroTrack.Data.ApplicationUser", "AssignedTo")
+                        .WithMany()
+                        .HasForeignKey("AssignedToId");
+
                     b.HasOne("ToroTrack.Data.Entities.Project", "Project")
                         .WithMany("Tasks")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("AssignedTo");
 
                     b.Navigation("Project");
                 });

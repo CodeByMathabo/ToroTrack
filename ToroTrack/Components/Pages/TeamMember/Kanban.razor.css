@@ -1,4 +1,4 @@
-﻿/* LAYOUT */
+﻿/* --- Keep Existing Styles --- */
 .page-shell {
     padding: 1rem;
     max-width: 1600px;
@@ -9,7 +9,6 @@
     overflow: hidden;
 }
 
-/* HEADER */
 .content-header {
     display: flex;
     justify-content: space-between;
@@ -33,6 +32,19 @@
 
 .header-right {
     flex: 0 0 auto;
+}
+
+/* Added d-flex gap helper since it wasn't in original css */
+.d-flex {
+    display: flex !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+.align-items-center {
+    align-items: center !important;
 }
 
 .page-title {
@@ -73,11 +85,31 @@
     font-weight: bold;
 }
 
+/* NEW: Primary Action Button for New Task */
+.btn-primary-action {
+    background-color: #283618; /* Toro green */
+    color: #fefae0;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+}
+
+    .btn-primary-action:hover {
+        background-color: #3d5224;
+    }
+
 /* TEAM FILTER BAR */
 .team-filter-bar {
     display: flex;
     gap: 8px;
-    margin-bottom: 2rem; /* Spacing added */
+    margin-bottom: 2rem;
     flex-shrink: 0;
     flex-wrap: wrap;
 }
@@ -145,7 +177,6 @@
     font-size: 0.75rem;
 }
 
-/* SCROLLABLE BODY */
 .column-body {
     padding: 0.8rem;
     overflow-y: auto;
@@ -227,7 +258,6 @@
     opacity: 0.7;
 }
 
-/* ACTIONS */
 .card-actions {
     display: flex;
     justify-content: flex-end;
@@ -283,5 +313,42 @@
     padding: 8px 16px;
     border-radius: 4px;
     font-weight: bold;
+    font-size: 0.85rem;
+}
+
+/* --- NEW MODERN FORM STYLES --- */
+.modern-modal-form {
+    width: 100%;
+    /* Fix: Prevent wide stretching */
+    max-width: 550px;
+    margin: 0 auto;
+}
+
+.small-label {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #555;
+    margin-bottom: 4px;
+    display: block;
+}
+
+/* Modern inputs mimicking the design in other modals */
+.task-input-modern {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 0.6rem;
+    font-size: 0.9rem;
+    background-color: #fafafa;
+}
+
+    .task-input-modern:focus {
+        border-color: #283618;
+        background-color: #fff;
+        box-shadow: 0 0 0 3px rgba(40, 54, 24, 0.1);
+    }
+
+.task-input-compact {
+    border: 1px solid #ccc;
+    padding: 4px 8px;
     font-size: 0.85rem;
 }

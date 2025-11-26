@@ -1,21 +1,27 @@
 ﻿@page "/team/kanban"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
 @using ToroTrack.Components.Layout
-@*attribute [Authorize(Roles = "TeamMember")]*@
+@using ToroTrack.Data
+@using ToroTrack.Data.Entities
 @rendermode InteractiveServer
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject ILogger<Kanban> Logger
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Kanban Board | Toro Track</PageTitle>
 
 <div class="page-shell">
     <header class="content-header">
         <div class="header-left">
-            <h1 class="page-title">Project Kanban</h1>
-            <p class="page-subtitle">Manage tasks for active project stages.</p>
+            <h1 class="page-title">Task Board</h1>
+            <p class="page-subtitle">Manage project tasks and workflow.</p>
         </div>
 
         <div class="header-center">
             <div class="search-wrapper">
-                @* UPDATED: Iterates over VisibleProjects only *@
                 <select class="project-select" @onchange="OnProjectSelected" value="@(SelectedProjectId?.ToString() ?? "")">
                     <option value="">
                         @if (VisibleProjects.Any())
@@ -24,39 +30,49 @@
                         }
                         else
                         {
-
                             <text>-- No Active Projects --</text>
                         }
                     </option>
                     @foreach (var proj in VisibleProjects)
                     {
-                        <option value="@proj.Id">@proj.ClientName - @proj.ProjectName</option>
+                        <option value="@proj.Id">@proj.Client?.FirstName @proj.Client?.LastName - @proj.Name</option>
                     }
                 </select>
             </div>
         </div>
 
-        <div class="header-right">
+        <div class="header-right d-flex gap-2 align-items-center">
             <div class="stage-indicator">
-                <span class="stage-label">View:</span>
-                <span class="stage-value">@CurrentTeamFilter</span>
+                <span class="stage-label">My Role:</span>
+                <span class="stage-value">@CurrentUserRole</span>
             </div>
+
+            @* Only show 'New Task' if user is allowed to create tasks (Optional: or keep open for all) *@
+            <button class="btn-primary-action" @onclick="OpenCreateModal">
+                <span class="bi bi-plus-lg"></span> New Task
+            </button>
         </div>
     </header>
 
-    @* TEAM FILTERS *@
+    @* TEAM FILTERS: Updated to also act as a View Filter *@
     <div class="team-filter-bar">
-        @* I kept 'All' for Admin testing, but in real life this would be hidden for normal users *@
-        <button class="tab-btn @(CurrentTeamFilter == "All" ? "active" : "")" @onclick='() => FilterByTeam("All")'>All Teams</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Logistics & Procurement" ? "active" : "")" @onclick='() => FilterByTeam("Logistics & Procurement")'>Logistics</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Infrastructure" ? "active" : "")" @onclick='() => FilterByTeam("Infrastructure")'>Infrastructure</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Network & Security" ? "active" : "")" @onclick='() => FilterByTeam("Network & Security")'>Network & Sec</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Cloud Migration" ? "active" : "")" @onclick='() => FilterByTeam("Cloud Migration")'>Cloud</button>
-        <button class="tab-btn @(CurrentTeamFilter == "Modern Workplace" ? "active" : "")" @onclick='() => FilterByTeam("Modern Workplace")'>Modern Work</button>
+        <button class="tab-btn @(CurrentTeamFilter == "All" ? "active" : "")" @onclick='() => FilterByTeam("All")'>All Roles</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Logistics Coordinator" ? "active" : "")" @onclick='() => FilterByTeam("Logistics Coordinator")'>Logistics</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Platform Engineer" ? "active" : "")" @onclick='() => FilterByTeam("Platform Engineer")'>Platform</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Network Security Engineer" ? "active" : "")" @onclick='() => FilterByTeam("Network Security Engineer")'>NetSec</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Cloud Engineer" ? "active" : "")" @onclick='() => FilterByTeam("Cloud Engineer")'>Cloud</button>
+        <button class="tab-btn @(CurrentTeamFilter == "Modern Workplace Engineer" ? "active" : "")" @onclick='() => FilterByTeam("Modern Workplace Engineer")'>Modern Work</button>
     </div>
 
-    <div class="kanban-board">
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @ErrorMessage
+            <button type="button" class="btn-close" @onclick='() => ErrorMessage = ""'></button>
+        </div>
+    }
 
+    <div class="kanban-board">
         @* COLUMN 1: BACKLOG *@
         <div class="kanban-column">
             <div class="column-header">
@@ -69,9 +85,17 @@
                     <div class="kanban-card">
                         @RenderCardContent(task)
                         <div class="card-actions">
-                            <button class="btn-move" @onclick='() => MoveTask(task, "Doing")'>
-                                Start <span class="bi bi-arrow-right-short"></span>
-                            </button>
+                            @* RBAC CHECK: Only show move button if allowed *@
+                            @if (CanInteractWithTask(task))
+                            {
+                                <button class="btn-move" @onclick='() => MoveTask(task, "Doing")'>
+                                    Start <span class="bi bi-arrow-right-short"></span>
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted small fst-italic"><i class="bi bi-lock-fill"></i> View Only</span>
+                            }
                         </div>
                     </div>
                 }
@@ -90,13 +114,19 @@
                     <div class="kanban-card doing-card">
                         @RenderCardContent(task)
                         <div class="card-actions">
-                            <button class="btn-move-back" @onclick='() => MoveTask(task, "Backlog")'>
-                                <span class="bi bi-arrow-left-short"></span>
-                            </button>
-                            @* Opens Context-Aware Modal *@
-                            <button class="btn-move" @onclick='() => InitiateCompleteTask(task)'>
-                                Done <span class="bi bi-arrow-right-short"></span>
-                            </button>
+                            @if (CanInteractWithTask(task))
+                            {
+                                <button class="btn-move-back" @onclick='() => MoveTask(task, "Backlog")'>
+                                    <span class="bi bi-arrow-left-short"></span>
+                                </button>
+                                <button class="btn-move" @onclick='() => InitiateCompleteTask(task)'>
+                                    Done <span class="bi bi-arrow-right-short"></span>
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted small fst-italic"><i class="bi bi-lock-fill"></i> View Only</span>
+                            }
                         </div>
                     </div>
                 }
@@ -121,7 +151,6 @@
                                 }
                                 else
                                 {
-
                                     <span class="bi bi-hourglass-split text-warning me-2"></span>
                                 }
                                 @task.Title
@@ -136,12 +165,12 @@
                                 {
                                     <span class="badge bg-success">Verified</span>
                                 }
-                                <span class="team-tag-mini">@GetTeamShortCode(task.AssignedTeam)</span>
+                                <span class="team-tag-mini">@GetTeamShortCode(task.AssignedToId)</span>
                             </div>
 
-                            @if (!string.IsNullOrEmpty(task.ProofFileName))
+                            @if (!string.IsNullOrEmpty(task.ProofUrl))
                             {
-                                <div class="mt-1 small text-muted"><span class="bi bi-paperclip"></span> @task.ProofFileName</div>
+                                <div class="mt-1 small text-muted"><span class="bi bi-paperclip"></span> Attached</div>
                             }
                         </div>
                     </div>
@@ -151,189 +180,178 @@
     </div>
 </div>
 
-@* 1. GENERIC PROOF MODAL *@
+@* --- MODALS --- *@
+
+@* 1. NEW TASK MODAL *@
+<ToroModal @bind-IsVisible="isCreateModalVisible" Title="Create New Task">
+    <div class="modern-modal-form">
+        <p class="text-muted mb-3 small">Adding task to <strong>@GetProjectName(SelectedProjectId)</strong></p>
+
+        <div class="alert alert-info py-2 px-3 small mb-3">
+            <i class="bi bi-clock-history me-1"></i>
+            <strong>Policy:</strong> Teams have a maximum of <strong>5 Days</strong> to complete this task once started.
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="small-label">Task Title</label>
+            <input @bind="NewTaskModel.Title" class="form-control task-input-modern" placeholder="e.g. Configure VNET Peering" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="small-label">Description</label>
+            <textarea @bind="NewTaskModel.Description" class="form-control task-input-modern" rows="3" placeholder="Details..."></textarea>
+        </div>
+
+        <div class="row">
+            <div class="col-6 form-group mb-3">
+                <label class="small-label">Start Date</label>
+                <input type="text" class="form-control task-input-modern bg-light" value="@DateTime.Now.ToShortDateString()" readonly />
+                <small class="text-muted" style="font-size:0.7rem">Automatic</small>
+            </div>
+            <div class="col-6 form-group mb-3">
+                <label class="small-label">Role / Team</label>
+                @* If regular user, force their role. If Admin, allow selection *@
+                @if (CurrentUserRole == "Admin")
+                {
+                    <select @bind="NewTaskModel.AssignedToId" class="form-select task-input-modern">
+                        <option value="Logistics Coordinator">Logistics Coordinator</option>
+                        <option value="Platform Engineer">Platform Engineer</option>
+                        <option value="Network Security Engineer">Network Security Engineer</option>
+                        <option value="Cloud Engineer">Cloud Engineer</option>
+                        <option value="Modern Workplace Engineer">Modern Workplace Engineer</option>
+                    </select>
+                }
+                else
+                {
+                    <input type="text" class="form-control task-input-modern" value="@NewTaskModel.AssignedToId" disabled />
+                    <small class="text-muted">Locked to your role</small>
+                }
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 border-top pt-3">
+            <button class="btn-cancel-task" @onclick="() => isCreateModalVisible = false">Cancel</button>
+            <button class="btn-save-task" @onclick="CreateTaskAsync">Create Task</button>
+        </div>
+    </div>
+</ToroModal>
+
+@* 2. PROOF MODAL *@
 <ToroModal @bind-IsVisible="isProofModalVisible" Title="Submit Proof">
     <div class="new-task-form border-0 shadow-none p-0">
         <p class="text-muted mb-3 small">Upload screenshots, logs, or provide a link for <strong>@TaskToComplete?.Title</strong>.</p>
 
         <div class="form-group mb-2">
-            <label class="small-label">Proof Link (Optional)</label>
-            <input @bind="ProofModel.Link" class="form-control task-input-compact" placeholder="https://..." />
+            <label class="small-label">Proof Link / URL</label>
+            <input @bind="ProofUrlInput" class="form-control task-input-compact" placeholder="https://..." />
         </div>
 
-        <div class="form-group mb-3">
-            <label class="small-label">Or Upload File (Screenshot/Log)</label>
-            <InputFile OnChange="HandleFileSelected" class="form-control task-input-compact" />
-            @if (!string.IsNullOrEmpty(ProofModel.FileName))
-            {
-                <div class="text-success small mt-1"><span class="bi bi-check2"></span> @ProofModel.FileName attached</div>
-            }
-        </div>
-
-        <div class="form-group mb-3">
-            <label class="small-label">Completion Notes</label>
-            <textarea @bind="ProofModel.Notes" class="form-control task-input-compact" rows="3"></textarea>
-        </div>
-
-        <div class="d-flex justify-content-end gap-2">
+        <div class="d-flex justify-content-end gap-2 mt-3">
             <button class="btn-cancel-task" @onclick="() => isProofModalVisible = false">Cancel</button>
-            <button class="btn-save-task" @onclick="FinalizeCompleteTask">Submit & Complete</button>
-        </div>
-    </div>
-</ToroModal>
-
-@* 2. ASSET REGISTRATION MODAL *@
-<ToroModal @bind-IsVisible="isAssetModalVisible" Title="Register Deployed Assets">
-    <div class="asset-form-container">
-        <p class="text-muted mb-3 small">
-            Completing delivery for <strong>@TaskToComplete?.Title</strong>.
-            <br />Scan serial numbers from the boxes or type manually.
-        </p>
-
-        <div class="scrolling-list mb-3">
-            <table class="table table-sm table-bordered bg-white mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th style="width: 25%">Type</th>
-                        <th style="width: 30%">Model</th>
-                        <th style="width: 35%">Serial Number</th>
-                        <th style="width: 10%"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var asset in NewAssets)
-                    {
-                        <tr>
-                            <td>
-                                <select @bind="asset.Type" class="form-select form-select-sm border-0">
-                                    <option>Laptop</option>
-                                    <option>Monitor</option>
-                                    <option>Docking Station</option>
-                                    <option>Peripherals</option>
-                                </select>
-                            </td>
-                            <td>
-                                <input @bind="asset.Model" class="form-control form-control-sm border-0" placeholder="e.g. Dell Latitude" />
-                            </td>
-                            <td>
-                                <input @bind="asset.SerialNumber" class="form-control form-control-sm fw-bold text-primary border-0" placeholder="Scan here..." />
-                            </td>
-                            <td class="text-center align-middle">
-                                <button class="btn btn-sm text-danger p-0" @onclick="() => RemoveAssetRow(asset)" title="Remove Device">
-                                    <span class="bi bi-trash3-fill"></span>
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            <button class="btn-outline-toro-sm w-100 rounded-0 border-top-0" @onclick="AddAssetRow">
-                <span class="bi bi-plus-circle"></span> Add Another Device
-            </button>
-        </div>
-
-        <div class="form-group mb-3 border-top pt-3">
-            <label class="small-label text-danger">Upload Signed Delivery Note (POD) *</label>
-            <InputFile OnChange="HandleFileSelected" class="form-control task-input-compact" accept=".pdf,.jpg,.png" />
-            <small class="text-muted">Auditor will verify this against serial numbers.</small>
-            @if (!string.IsNullOrEmpty(ProofModel.FileName))
-            {
-                <div class="text-success small mt-1"><span class="bi bi-check2"></span> @ProofModel.FileName attached</div>
-            }
-        </div>
-
-        <div class="d-flex justify-content-end gap-2">
-            <button class="btn-cancel-task" @onclick="() => isAssetModalVisible = false">Cancel</button>
-            <button class="btn-save-task" @onclick="SubmitAssetsAndComplete">Register & Complete</button>
+            <button class="btn-save-task" @onclick="SubmitProofAsync">Submit & Complete</button>
         </div>
     </div>
 </ToroModal>
 
 @code {
-    public class KanbanProject { public int Id { get; set; } public string ClientName { get; set; } = ""; public string ProjectName { get; set; } = ""; }
+    // State
+    private List<Project> Projects = new();
+    private List<ProjectTask> Tasks = new();
+    private List<Project> VisibleProjects = new();
 
-    public class KanbanTask
+    private string CurrentTeamFilter = "All"; // Default view
+    private int? SelectedProjectId = null;
+    private string ErrorMessage = "";
+
+    // Auth State
+    private string CurrentUserRole = "Loading...";
+    private bool IsAdmin = false;
+
+    // Models & Modals
+    private bool isCreateModalVisible = false;
+    private bool isProofModalVisible = false;
+    private ProjectTask NewTaskModel = new();
+    private ProjectTask? TaskToComplete;
+    private string ProofUrlInput = "";
+
+    // Computed Properties
+    private IEnumerable<ProjectTask> FilteredTasks => Tasks
+        .Where(t => SelectedProjectId == null || t.ProjectId == SelectedProjectId)
+        .Where(t => CurrentTeamFilter == "All" || t.AssignedToId == CurrentTeamFilter);
+
+    protected override async Task OnInitializedAsync()
     {
-        public int Id { get; set; }
-        public int ProjectId { get; set; }
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string Priority { get; set; } = "Medium";
-        public DateTime? DueDate { get; set; }
-        public string Status { get; set; } = "Backlog";
-        public string AssignedTeam { get; set; } = "Infrastructure";
-        public string ProofFileName { get; set; } = "";
+        await LoadUserRoleAsync();
+        await LoadDataAsync();
     }
 
-    public class NewAssetModel { public string Type { get; set; } = "Laptop"; public string Model { get; set; } = ""; public string SerialNumber { get; set; } = ""; }
-    public class ProofOfWork { public string Link { get; set; } = ""; public string Notes { get; set; } = ""; public string FileName { get; set; } = ""; }
-
-    // State
-    private List<KanbanProject> AllProjects = new(); // Source of Truth
-    private List<KanbanProject> VisibleProjects = new(); // Filtered for Dropdown
-    private List<KanbanTask> Tasks = new();
-    private string CurrentTeamFilter = "Logistics & Procurement"; // Simulate Login
-    private int? SelectedProjectId = null;
-
-    private bool isProofModalVisible = false;
-    private bool isAssetModalVisible = false;
-    private KanbanTask? TaskToComplete;
-    private ProofOfWork ProofModel = new();
-    private List<NewAssetModel> NewAssets = new();
-
-    // FILTER LOGIC
-    private IEnumerable<KanbanTask> FilteredTasks => Tasks
-        .Where(t => CurrentTeamFilter == "All" || t.AssignedTeam == CurrentTeamFilter)
-        .Where(t => SelectedProjectId == null || t.ProjectId == SelectedProjectId);
-
-    protected override void OnInitialized()
+    private async Task LoadUserRoleAsync()
     {
-        AllProjects = new List<KanbanProject>
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
         {
-            new KanbanProject { Id = 1, ClientName = "Law Firm Z", ProjectName = "Office Expansion" },
-            new KanbanProject { Id = 2, ClientName = "Retail Corp", ProjectName = "HQ Upgrade" },
-            new KanbanProject { Id = 3, ClientName = "School A", ProjectName = "Cloud Migration Only" } // Project with NO Logistics tasks
-        };
+            // Assuming roles are stored as claims.
+            // In a real scenario, you might Map "Role Claim" -> "Job Title" string
+            // For this demo, we assume the Role Claim matches the Job Title or we default to a safe value.
 
-        Tasks = new List<KanbanTask>
+            if (user.IsInRole("Admin"))
+            {
+                IsAdmin = true;
+                CurrentUserRole = "Admin";
+            }
+            else
+            {
+                // Find the role claim that matches our job titles
+                var roleClaim = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
+                CurrentUserRole = roleClaim?.Value ?? "Guest";
+            }
+        }
+    }
+
+    // --- RBAC CORE LOGIC ---
+    private bool CanInteractWithTask(ProjectTask task)
+    {
+        if (IsAdmin) return true; // Admins can do anything
+
+        // Users can only touch tasks assigned to their specific Role
+        return task.AssignedToId == CurrentUserRole;
+    }
+    // -----------------------
+
+    private async Task LoadDataAsync()
+    {
+        try
         {
-            // Logistics Tasks
-            new KanbanTask { Id = 104, ProjectId = 1, Title = "Deliver Order #1099", Description = "New Order: 5x MacBook Pro.", Priority = "High", Status = "Backlog", AssignedTeam = "Logistics & Procurement", DueDate = DateTime.Now.AddDays(2) },
-            new KanbanTask { Id = 101, ProjectId = 2, Title = "Deliver Order #1024", Description = "5x Dell Laptops.", Priority = "High", Status = "Doing", AssignedTeam = "Logistics & Procurement", DueDate = DateTime.Now.AddDays(1) },
+            using var context = DbFactory.CreateDbContext();
 
-            // Cloud Tasks (School A has only Cloud tasks)
-            new KanbanTask { Id = 105, ProjectId = 3, Title = "Azure Setup", Description = "Provision storage.", Priority = "Low", Status = "Backlog", AssignedTeam = "Cloud Migration" }
-        };
+            Projects = await context.Projects
+                .Include(p => p.Client)
+                .Include(p => p.Tasks)
+                .Where(p => p.Status == "Active")
+                .ToListAsync();
 
-        // Initial Calculation of Visible Projects based on default team
-        UpdateVisibleProjects();
+            Tasks = Projects.SelectMany(p => p.Tasks).ToList();
+            VisibleProjects = Projects;
+
+            // Auto-filter if not Admin
+            if (!IsAdmin && CurrentUserRole != "Guest")
+            {
+                CurrentTeamFilter = CurrentUserRole;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error loading data: {ex.Message}";
+            Logger.LogError(ex, "Failed to load Kanban data");
+        }
     }
 
     private void FilterByTeam(string team)
     {
         CurrentTeamFilter = team;
-        SelectedProjectId = null; // Reset dropdown when switching teams
-        UpdateVisibleProjects(); // Recalculate which projects are relevant
-    }
-
-    // --- NEW: SMART PROJECT FILTER LOGIC ---
-    private void UpdateVisibleProjects()
-    {
-        if (CurrentTeamFilter == "All")
-        {
-            VisibleProjects = AllProjects;
-        }
-        else
-        {
-            // Find projects that have at least one active task (Backlog/Doing) assigned to the current team
-            var relevantProjectIds = Tasks
-                .Where(t => t.AssignedTeam == CurrentTeamFilter && (t.Status == "Backlog" || t.Status == "Doing"))
-                .Select(t => t.ProjectId)
-                .Distinct()
-                .ToList();
-
-            VisibleProjects = AllProjects.Where(p => relevantProjectIds.Contains(p.Id)).ToList();
-        }
+        StateHasChanged();
     }
 
     private void OnProjectSelected(ChangeEventArgs e)
@@ -342,69 +360,136 @@
         else SelectedProjectId = null;
     }
 
-    private void MoveTask(KanbanTask task, string newStatus) => task.Status = newStatus;
+    private string GetProjectName(int? id) => Projects.FirstOrDefault(p => p.Id == id)?.Name ?? "Unknown";
 
-    private void InitiateCompleteTask(KanbanTask task)
+    // --- CREATE TASK ---
+    private void OpenCreateModal()
     {
+        if (SelectedProjectId == null)
+        {
+            ErrorMessage = "Please select a Project from the dropdown first.";
+            return;
+        }
+
+        // RBAC CHECK: Can this user create tasks?
+        // (Assuming all team members can create tasks, but we force the assignment)
+
+        ErrorMessage = "";
+        NewTaskModel = new ProjectTask
+        {
+            ProjectId = SelectedProjectId.Value,
+            Status = "Backlog",
+            // If not admin, force assignment to themselves
+            AssignedToId = IsAdmin ? "Platform Engineer" : CurrentUserRole
+        };
+        isCreateModalVisible = true;
+    }
+
+    private async Task CreateTaskAsync()
+    {
+        if (string.IsNullOrWhiteSpace(NewTaskModel.Title)) return;
+
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            // StartDate is handled in Repository or defaulted in Entity
+            context.ProjectTasks.Add(NewTaskModel);
+            await context.SaveChangesAsync();
+
+            isCreateModalVisible = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Database Error: {ex.Message}";
+        }
+    }
+
+    // --- MOVE / UPDATE STATUS ---
+    private async Task MoveTask(ProjectTask task, string newStatus)
+    {
+        // Double Check Logic (Security)
+        if (!CanInteractWithTask(task))
+        {
+            ErrorMessage = "You are not authorized to move this task.";
+            return;
+        }
+
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            var dbTask = await context.ProjectTasks.FindAsync(task.Id);
+            if (dbTask != null)
+            {
+                dbTask.Status = newStatus;
+                await context.SaveChangesAsync();
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Failed to move task.";
+            Logger.LogError(ex, "Move Task Error");
+        }
+    }
+
+    // --- COMPLETE / PROOF ---
+    private void InitiateCompleteTask(ProjectTask task)
+    {
+        // Double Check Logic (Security)
+        if (!CanInteractWithTask(task)) return;
+
         TaskToComplete = task;
-        ProofModel = new ProofOfWork();
+        ProofUrlInput = "";
+        isProofModalVisible = true;
+    }
 
-        bool isLogistics = task.AssignedTeam == "Logistics & Procurement" ||
-                          task.Title.Contains("Order", StringComparison.OrdinalIgnoreCase);
+    private async Task SubmitProofAsync()
+    {
+        if (TaskToComplete == null) return;
 
-        if (isLogistics)
+        try
         {
-            NewAssets = new List<NewAssetModel> { new NewAssetModel() };
-            isAssetModalVisible = true;
+            using var context = DbFactory.CreateDbContext();
+            var dbTask = await context.ProjectTasks.FindAsync(TaskToComplete.Id);
+            if (dbTask != null)
+            {
+                dbTask.Status = "PendingReview";
+                dbTask.ProofUrl = ProofUrlInput;
+                await context.SaveChangesAsync();
+
+                isProofModalVisible = false;
+                await LoadDataAsync();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            isProofModalVisible = true;
+            ErrorMessage = "Failed to submit proof.";
         }
     }
 
-    private void AddAssetRow() => NewAssets.Add(new NewAssetModel());
-    private void RemoveAssetRow(NewAssetModel item) => NewAssets.Remove(item);
-
-    private void SubmitAssetsAndComplete()
-    {
-        if (TaskToComplete != null) { TaskToComplete.Status = "PendingReview"; TaskToComplete.ProofFileName = ProofModel.FileName; isAssetModalVisible = false; }
-    }
-
-    private void FinalizeCompleteTask()
-    {
-        if (TaskToComplete != null) { TaskToComplete.Status = "PendingReview"; TaskToComplete.ProofFileName = ProofModel.FileName; isProofModalVisible = false; }
-    }
-
-    private void HandleFileSelected(InputFileChangeEventArgs e) => ProofModel.FileName = e.File.Name;
-
-    private string GetTeamShortCode(string fullTeam) => fullTeam switch
-    {
-        "Logistics & Procurement" => "LOG",
-        "Infrastructure" => "INFRA",
-        "Network & Security" => "NET",
-        "Cloud Migration" => "CLOUD",
-        "Modern Workplace" => "WORK",
-        "Training & Support" => "EDU",
-        _ => "GEN"
-    };
-
-    private RenderFragment RenderCardContent(KanbanTask task) => __builder =>
+    private RenderFragment RenderCardContent(ProjectTask task) => __builder =>
     {
         <div class="card-content">
             <div class="d-flex justify-content-between align-items-start mb-1">
-                <span class="badge-priority @task.Priority.ToLower()">@task.Priority</span>
+                <span class="badge-priority medium">Medium</span>
                 @if (CurrentTeamFilter == "All")
                 {
-                    <span class="team-badge-xs">@GetTeamShortCode(task.AssignedTeam)</span>
+                    <span class="team-badge-xs">@GetTeamShortCode(task.AssignedToId)</span>
                 }
             </div>
             <p class="task-title">@task.Title</p>
             <p class="task-desc">@task.Description</p>
-            @if (task.DueDate.HasValue)
-            {
-                <small class="text-muted d-block mt-1"><span class="bi bi-calendar2-event"></span> @task.DueDate.Value.ToString("MMM dd")</small>
-            }
         </div>
+    };
+
+    private string GetTeamShortCode(string? fullTeam) => fullTeam switch
+    {
+        "Logistics Coordinator" => "LOG",
+        "Platform Engineer" => "PLATFORM",
+        "Network Security Engineer" => "NETSEC",
+        "Cloud Engineer" => "CLOUD",
+        "Modern Workplace Engineer" => "M365",
+        _ => "GEN"
     };
 }

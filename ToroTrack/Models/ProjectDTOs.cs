@@ -7,10 +7,14 @@ namespace ToroTrack.Models
         public int Id { get; set; }
 
         [Required(ErrorMessage = "Project Name is required.")]
-        public string Name { get; set; } = ""; 
+        public string Name { get; set; } = "";
 
         [Required(ErrorMessage = "Please select a client.")]
         public string SelectedClientId { get; set; } = "";
+
+        // Admin selects the starting team here
+        [Required(ErrorMessage = "Please select the starting team.")]
+        public string AssignedTeam { get; set; } = "Platform Engineer";
 
         [Required]
         public DateTime StartDate { get; set; } = DateTime.Now;
@@ -22,7 +26,7 @@ namespace ToroTrack.Models
     public class ProjectViewModel
     {
         public int Id { get; set; }
-        public string Name { get; set; } = ""; 
+        public string Name { get; set; } = "";
         public string ClientName { get; set; } = "";
         public string ClientEmail { get; set; } = "";
         public DateTime StartDate { get; set; }

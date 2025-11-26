@@ -22,11 +22,7 @@
 
         <div class="header-center">
             <div class="search-wrapper">
-                <input type="text"
-                       @bind="SearchQuery"
-                       @bind:event="oninput"
-                       placeholder="Search projects..."
-                       class="search-input" />
+                <input type="text" @bind="SearchQuery" @bind:event="oninput" placeholder="Search projects..." class="search-input" />
             </div>
         </div>
 
@@ -37,22 +33,6 @@
         </div>
     </header>
 
-    @* Stat Cards *@
-    <div class="stats-container">
-        <div class="stat-card">
-            <span class="stat-title">Total Projects</span>
-            <span class="stat-number">@(ProjectList?.Count ?? 0)</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-title">Active Projects</span>
-            <span class="stat-number">@(ProjectList?.Count(p => p.IsActive) ?? 0)</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-title">Avg Progress</span>
-            <span class="stat-number">@(ProjectList != null && ProjectList.Any() ? (int)ProjectList.Average(p => p.ProgressPercent) : 0)%</span>
-        </div>
-    </div>
-
     @* Data Grid *@
     <div class="table-container">
         <table class="toro-table project-table">
@@ -62,7 +42,7 @@
                     <th style="width: 20%">Client</th>
                     <th style="width: 12%">Start Date</th>
                     <th style="width: 12%">Due Date</th>
-                    <th style="width: 13%">Active Team</th>
+                    <th style="width: 13%">Current Team</th>
                     <th style="width: 10%">Progress</th>
                     <th style="width: 8%" class="text-center">Status</th>
                     <th style="width: 5%" class="text-center">Action</th>
@@ -83,7 +63,6 @@
                     {
                         <tr class="@(project.IsActive ? "" : "row-inactive")">
                             <td class="fw-bold text-primary">@project.Name</td>
-
                             <td>
                                 <div>@project.ClientName</div>
                                 <small class="text-muted">@project.ClientEmail</small>
@@ -108,13 +87,12 @@
                                 }
                                 else
                                 {
+
                                     <span class="status-badge inactive">Suspended</span>
                                 }
                             </td>
                             <td class="text-center">
-                                <button class="btn-edit-custom" @onclick="() => EditProject(project)">
-                                    Edit
-                                </button>
+                                <button class="btn-edit-custom" @onclick="() => EditProject(project)">Edit</button>
                             </td>
                         </tr>
                     }
@@ -125,13 +103,12 @@
 </div>
 
 <ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
-    <EditForm Model="InputModel" OnValidSubmit="HandleSubmit" FormName="projectForm">
+    <EditForm Model="InputModel" OnValidSubmit="HandleSubmit">
         <DataAnnotationsValidator />
-
 
         <div class="form-group">
             <label class="small-label">Project Name</label>
-            <InputText @bind-Value="InputModel.Name" class="form-control" placeholder="e.g. Cloud Migration Phase 1" />
+            <InputText @bind-Value="InputModel.Name" class="form-control" placeholder="e.g. Azure Migration" />
             <ValidationMessage For="@(() => InputModel.Name)" class="text-danger" />
         </div>
 
@@ -158,6 +135,18 @@
             }
         </div>
 
+        <div class="form-group">
+            <label class="small-label">Assigned Team</label>
+            <InputSelect @bind-Value="InputModel.AssignedTeam" class="form-select form-control">
+                <option value="Platform Engineer">Platform Engineer (Hardware/Infrastructure)</option>
+                <option value="Logistics Coordinator">Logistics Coordinator (Procurement)</option>
+                <option value="Network Security Engineer">Network Security Engineer (VPN/Firewall)</option>
+                <option value="Cloud Engineer">Cloud Engineer (Migration/Backup)</option>
+                <option value="Modern Workplace Engineer">Modern Workplace Engineer (O365)</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => InputModel.AssignedTeam)" class="text-danger" />
+        </div>
+
         <div class="row">
             <div class="col-md-6">
                 <div class="form-group">
@@ -173,12 +162,9 @@
             </div>
         </div>
 
-        @* Error Display Block *@
         @if (!string.IsNullOrEmpty(ErrorMessage))
         {
-            <div class="alert alert-danger mt-3">
-                <span class="bi bi-exclamation-triangle-fill me-2"></span> @ErrorMessage
-            </div>
+            <div class="alert alert-danger mt-3">@ErrorMessage</div>
         }
 
         <div class="form-actions mt-4 text-end">
@@ -189,8 +175,8 @@
                 }
                 else
                 {
-                    <span class="bi bi-save me-2"></span> 
-                    @(isEditing ? "Save Changes" : "Initialize Project")
+
+                    <span>@(isEditing ? "Save Changes" : "Initialize Project")</span>
                 }
             </button>
         </div>
@@ -204,18 +190,13 @@
     private string modalTitle = "";
     private string SearchQuery { get; set; } = "";
     private string? ErrorMessage { get; set; }
-
-    // Data Holders
     private List<ProjectViewModel>? ProjectList;
     private List<ApplicationUser>? ActiveClients;
 
     [SupplyParameterFromForm]
     private ProjectInputModel InputModel { get; set; } = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadDataAsync();
-    }
+    protected override async Task OnInitializedAsync() => await LoadDataAsync();
 
     private async Task LoadDataAsync()
     {
@@ -223,25 +204,17 @@
         {
             var projectsTask = ProjectService.GetAllProjectsAsync();
             var clientsTask = ProjectService.GetActiveClientsAsync();
-
             await Task.WhenAll(projectsTask, clientsTask);
-
             ProjectList = projectsTask.Result;
             ActiveClients = clientsTask.Result;
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to load project data");
-        }
+        catch (Exception ex) { Logger.LogError(ex, "Failed to load project data"); }
     }
 
     private IEnumerable<ProjectViewModel> FilteredProjects =>
         string.IsNullOrWhiteSpace(SearchQuery) || ProjectList == null
         ? (ProjectList ?? new List<ProjectViewModel>())
-        : ProjectList.Where(p =>
-            p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
-            p.ClientName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
-            p.ClientEmail.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+        : ProjectList.Where(p => p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) || p.ClientName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
 
     private void OpenCreateModal()
     {
@@ -250,7 +223,7 @@
         modalTitle = "Initialize New Project";
         InputModel = new ProjectInputModel
         {
-            Name = "",
+            AssignedTeam = "Platform Engineer",
             StartDate = DateTime.Now,
             DueDate = DateTime.Now.AddMonths(1)
         };
@@ -262,14 +235,13 @@
         isEditing = true;
         ErrorMessage = null;
         modalTitle = "Edit Project Details";
-
         var matchedClient = ActiveClients?.FirstOrDefault(c => c.Email == project.ClientEmail);
-
         InputModel = new ProjectInputModel
         {
             Id = project.Id,
             Name = project.Name,
             SelectedClientId = matchedClient?.Id ?? "",
+            AssignedTeam = project.CurrentTeam,
             StartDate = project.StartDate,
             DueDate = project.DueDate
         };
@@ -279,37 +251,22 @@
     private async Task HandleSubmit()
     {
         isSaving = true;
-        ErrorMessage = null;
-
         try
         {
-            // Force UTC conversion for PostgreSQL compatibility
             InputModel.StartDate = DateTime.SpecifyKind(InputModel.StartDate, DateTimeKind.Utc);
             InputModel.DueDate = DateTime.SpecifyKind(InputModel.DueDate, DateTimeKind.Utc);
 
-            if (isEditing)
-            {
-                await ProjectService.UpdateProjectAsync(InputModel);
-            }
-            else
-            {
-                await ProjectService.CreateProjectAsync(InputModel);
-            }
+            if (isEditing) await ProjectService.UpdateProjectAsync(InputModel);
+            else await ProjectService.CreateProjectAsync(InputModel);
 
             isModalVisible = false;
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error saving project");
-            // display the real database error
-            var realError = ex.InnerException?.Message ?? ex.Message;
-            ErrorMessage = $"Database Error: {realError}";
+            ErrorMessage = $"Database Error: {ex.Message}";
         }
-        finally
-        {
-            isSaving = false;
-        }
+        finally { isSaving = false; }
     }
 
     private string GetClientNameById(string id)
