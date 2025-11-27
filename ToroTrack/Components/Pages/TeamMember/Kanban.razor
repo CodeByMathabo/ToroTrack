@@ -62,8 +62,6 @@
         </div>
     </header>
 
-    @* FILTER BAR REMOVED - 'My Job' indicator handles context *@
-
     @if (!string.IsNullOrEmpty(ErrorMessage))
     {
         <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
@@ -82,30 +80,7 @@
             <div class="column-body">
                 @foreach (var task in FilteredTasks.Where(t => t.Status == "Backlog"))
                 {
-                    <div class="kanban-card">
-                        @RenderCardContent(task)
-
-                        @* Smart Action Button *@
-                        @if (!string.IsNullOrEmpty(GetActionLink(task.Title)))
-                        {
-                            <a href="@GetActionLink(task.Title)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2" style="font-size: 0.75rem; border-style: dashed;">
-                                <span class="bi bi-box-arrow-up-right"></span> Go to Task Page
-                            </a>
-                        }
-
-                        <div class="card-actions">
-                            @if (CanInteractWithTask(task))
-                            {
-                                <button class="btn-move" @onclick='() => MoveTask(task, "Doing")'>
-                                    Start <span class="bi bi-arrow-right-short"></span>
-                                </button>
-                            }
-                            else
-                            {
-                                <span class="text-muted small fst-italic"><i class="bi bi-lock-fill"></i> View Only</span>
-                            }
-                        </div>
-                    </div>
+                    @RenderTaskCard(task)
                 }
             </div>
         </div>
@@ -119,33 +94,7 @@
             <div class="column-body">
                 @foreach (var task in FilteredTasks.Where(t => t.Status == "Doing"))
                 {
-                    <div class="kanban-card doing-card">
-                        @RenderCardContent(task)
-
-                        @* Smart Action Button *@
-                        @if (!string.IsNullOrEmpty(GetActionLink(task.Title)))
-                        {
-                            <a href="@GetActionLink(task.Title)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2" style="font-size: 0.75rem; border-style: dashed;">
-                                <span class="bi bi-box-arrow-up-right"></span> Go to Task Page
-                            </a>
-                        }
-
-                        <div class="card-actions">
-                            @if (CanInteractWithTask(task))
-                            {
-                                <button class="btn-move-back" @onclick='() => MoveTask(task, "Backlog")'>
-                                    <span class="bi bi-arrow-left-short"></span>
-                                </button>
-                                <button class="btn-move" @onclick='() => InitiateCompleteTask(task)'>
-                                    Done <span class="bi bi-arrow-right-short"></span>
-                                </button>
-                            }
-                            else
-                            {
-                                <span class="text-muted small fst-italic"><i class="bi bi-lock-fill"></i> View Only</span>
-                            }
-                        </div>
-                    </div>
+                    @RenderTaskCard(task)
                 }
             </div>
         </div>
@@ -280,6 +229,94 @@
     </div>
 </ToroModal>
 
+@* 3. ORDER REVIEW MODAL (FIXED LAYOUT) *@
+<ToroModal @bind-IsVisible="isOrderReviewVisible" Title="Review Order Request">
+    @* Using modern-modal-form class to match 'Initialize Project' style *@
+    <div class="modern-modal-form" style="max-width: 650px;">
+
+        @if (CurrentProjectOrder == null)
+        {
+            <div class="alert alert-warning text-center rounded-3 shadow-sm border-0 my-4">
+                <i class="bi bi-search me-2"></i> No active order found for this project.
+            </div>
+        }
+        else
+        {
+            <p class="text-muted mb-3 small">Review items requested by client <strong>@CurrentProjectOrder.Client?.FullName</strong>.</p>
+
+            @* Client Summary Block *@
+            <div class="bg-light p-3 rounded-3 border mb-3">
+                <div class="row g-2">
+                    <div class="col-8">
+                        <label class="small-label">Client Name</label>
+                        <div class="fw-bold text-dark">@CurrentProjectOrder.Client?.FullName</div>
+                        <small class="text-muted">@CurrentProjectOrder.Client?.Email</small>
+                    </div>
+                    <div class="col-4 text-end">
+                        <label class="small-label">Status</label>
+                        <span class="badge bg-white text-dark border">@CurrentProjectOrder.Status</span>
+                    </div>
+                </div>
+            </div>
+
+            @* Items List *@
+            <label class="small-label mb-2">Requested Items</label>
+            <div class="border rounded-3 overflow-hidden shadow-sm bg-white mb-4">
+                <div class="d-flex bg-light p-2 small fw-bold text-muted border-bottom">
+                    <div class="flex-grow-1 ps-2">Product</div>
+                    <div class="text-center" style="width: 60px;">Qty</div>
+                    <div class="text-end pe-2" style="width: 140px;">Availability</div>
+                </div>
+
+                <div style="max-height: 250px; overflow-y: auto;">
+                    @foreach (var item in CurrentProjectOrder.Items)
+                    {
+                        <div class="d-flex align-items-center p-2 border-bottom hover-bg-light">
+                            @* Name *@
+                            <div class="flex-grow-1 ps-2">
+                                <span class="fw-bold text-dark d-block" style="font-size: 0.9rem;">
+                                    @item.CatalogItem?.Name
+                                </span>
+                            </div>
+
+                            @* Qty *@
+                            <div class="text-center" style="width: 60px;">
+                                <span class="badge bg-light text-dark border">x @item.Quantity</span>
+                            </div>
+
+                            @* Status *@
+                            <div class="text-end pe-2" style="width: 140px;">
+                                @if (IsStockSufficient(item))
+                                {
+                                    <div class="text-success fw-bold" style="font-size: 0.8rem;">
+                                        <i class="bi bi-check-circle-fill"></i> In Stock
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-danger fw-bold" style="font-size: 0.8rem;">
+                                        <i class="bi bi-exclamation-octagon-fill"></i> Low Stock
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* Action Buttons (Aligned to bottom right like Project Modal) *@
+            <div class="d-flex justify-content-between pt-2 border-top">
+                <button class="btn-cancel-task text-danger border-danger" @onclick='() => ProcessOrderDecision("Low Stock")'>
+                    <i class="bi bi-flag me-1"></i> Report Issue
+                </button>
+                <button class="btn-save-task" @onclick='() => ProcessOrderDecision("Confirmed")'>
+                    Confirm & Allocate
+                </button>
+            </div>
+        }
+    </div>
+</ToroModal>
+
 @code {
     // --- State & Auth ---
     private List<Project> Projects = new();
@@ -289,7 +326,6 @@
     private string CurrentTeamFilter = "All";
     private int? SelectedProjectId = null;
     private string ErrorMessage = "";
-
     private string CurrentUserJobRole = "Loading...";
     private string CurrentUserIdentityRole = "";
     private bool IsAdmin = false;
@@ -297,11 +333,14 @@
     // --- Models & UI Logic ---
     private bool isCreateModalVisible = false;
     private bool isProofModalVisible = false;
+    private bool isOrderReviewVisible = false;
 
     private ProjectTask NewTaskModel = new();
     private ProjectTask? TaskToComplete;
+    private AssetOrder? CurrentProjectOrder;
     private string ProofUrlInput = "";
 
+    // Stage Logic
     private List<(string Title, string Description)> StageOptions = new();
     private bool IsCustomTask = false;
 
@@ -359,13 +398,11 @@
         try
         {
             using var context = DbFactory.CreateDbContext();
-
             Projects = await context.Projects
                 .Include(p => p.Client)
                 .Include(p => p.Tasks)
                 .Where(p => p.Status == "Active")
                 .ToListAsync();
-
             Tasks = Projects.SelectMany(p => p.Tasks).ToList();
             VisibleProjects = Projects;
 
@@ -403,7 +440,6 @@
         {
             ProjectId = SelectedProjectId.Value,
             Status = "Backlog",
-            // Always assign to user's role (or Admin default)
             AssignedToId = IsAdmin ? "Platform Engineer" : CurrentUserJobRole
         };
 
@@ -416,7 +452,6 @@
     private void OnStageSelected(ChangeEventArgs e)
     {
         var selectedTitle = e.Value?.ToString();
-
         if (selectedTitle == "Custom")
         {
             IsCustomTask = true;
@@ -486,7 +521,6 @@
     private async Task CreateTaskAsync()
     {
         if (string.IsNullOrWhiteSpace(NewTaskModel.Title)) return;
-
         try
         {
             using var context = DbFactory.CreateDbContext();
@@ -546,7 +580,6 @@
     private async Task SubmitProofAsync()
     {
         if (TaskToComplete == null) return;
-
         try
         {
             using var context = DbFactory.CreateDbContext();
@@ -566,21 +599,148 @@
         }
     }
 
-    private RenderFragment RenderCardContent(ProjectTask task) => __builder =>
+    // --- ORDER REVIEW LOGIC (Layout Supported) ---
+
+    private async Task OpenOrderReviewModal(int projectId)
     {
-        <div class="card-content">
-            <div class="d-flex justify-content-between align-items-start mb-1">
-                <span class="badge-priority medium">Medium</span>
-                @if (CurrentTeamFilter == "All")
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            CurrentProjectOrder = await context.AssetOrders
+                .Include(o => o.Client)
+                .Include(o => o.Items)
+                .ThenInclude(i => i.CatalogItem)
+                .Where(o => o.ProjectId == projectId)
+                .OrderByDescending(o => o.OrderDate)
+                .FirstOrDefaultAsync();
+
+            isOrderReviewVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to open order review for project {ProjectId}", projectId);
+            ErrorMessage = "Could not load order details.";
+        }
+    }
+
+    private void CloseOrderReview()
+    {
+        isOrderReviewVisible = false;
+        CurrentProjectOrder = null;
+    }
+
+    // Helper to keep logic out of the View for better readability
+    private bool IsStockSufficient(OrderItem item)
+    {
+        if (item.CatalogItem == null) return false;
+        return item.CatalogItem.StockQuantity >= item.Quantity;
+    }
+
+    // Unified update logic with logging
+    private async Task ProcessOrderDecision(string newStatus)
+    {
+        if (CurrentProjectOrder == null)
+        {
+            Logger.LogWarning("Attempted to update order status but CurrentProjectOrder is null.");
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("User {User} setting Order {OrderId} to {Status}",
+                CurrentUserJobRole, CurrentProjectOrder.Id, newStatus);
+
+            using var context = DbFactory.CreateDbContext();
+            var order = await context.AssetOrders.FindAsync(CurrentProjectOrder.Id);
+
+            if (order != null)
+            {
+                order.Status = newStatus;
+                await context.SaveChangesAsync();
+
+                CurrentProjectOrder.Status = newStatus;
+                isOrderReviewVisible = false;
+                await LoadDataAsync();
+            }
+            else
+            {
+                ErrorMessage = "Order not found in database.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update order status for Order {Id}", CurrentProjectOrder.Id);
+            ErrorMessage = "System error processing order.";
+        }
+    }
+
+    private RenderFragment RenderTaskCard(ProjectTask task) => __builder =>
+    {
+        <div class="kanban-card">
+            <div class="card-content">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="badge-priority medium">Medium</span>
+                    @if (CurrentTeamFilter == "All")
+                    {
+                        <span class="team-badge-xs">@GetTeamShortCode(task.AssignedToId)</span>
+                    }
+                </div>
+                <p class="task-title">@task.Title</p>
+                <p class="task-desc">@task.Description</p>
+            </div>
+
+            @* --- SMART ACTION BUTTONS --- *@
+
+            @* 1. Specific Button for Logistics Stage 2 (Client Order) *@
+            @if (task.Title.Contains("Stage 2") && task.AssignedToId == "Logistics Coordinator")
+            {
+                <button class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2" @onclick="() => OpenOrderReviewModal(task.ProjectId)" style="font-size: 0.75rem; border-style: dashed;">
+                    <i class="bi bi-clipboard-check"></i> Review Client Order
+                </button>
+            }
+            @* 2. General Smart Buttons for other tasks (Catalog, Verify, etc.) *@
+            else if (!string.IsNullOrEmpty(GetActionLink(task.Title)))
+            {
+                <a href="@GetActionLink(task.Title)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2" style="font-size: 0.75rem; border-style: dashed;">
+                    <span class="bi bi-box-arrow-up-right"></span> Go to Task Page
+                </a>
+            }
+
+            <div class="card-actions">
+                @if (task.Status == "Backlog")
                 {
-                    <span class="team-badge-xs">@GetTeamShortCode(task.AssignedToId)</span>
+                    @if (CanInteractWithTask(task))
+                    {
+                        <button class="btn-move" @onclick='() => MoveTask(task, "Doing")'>
+                            Start <span class="bi bi-arrow-right-short"></span>
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="text-muted small fst-italic"><i class="bi bi-lock-fill"></i> View Only</span>
+                    }
+                }
+                else if (task.Status == "Doing")
+                {
+                    @if (CanInteractWithTask(task))
+                    {
+                        <button class="btn-move-back" @onclick='() => MoveTask(task, "Backlog")'>
+                            <span class="bi bi-arrow-left-short"></span>
+                        </button>
+                        <button class="btn-move" @onclick='() => InitiateCompleteTask(task)'>
+                            Done <span class="bi bi-arrow-right-short"></span>
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="text-muted small fst-italic"><i class="bi bi-lock-fill"></i> View Only</span>
+                    }
                 }
             </div>
-            <p class="task-title">@task.Title</p>
-            <p class="task-desc">@task.Description</p>
         </div>
     };
 
+    // --- SMART LINKING ---
     private string? GetActionLink(string title)
     {
         if (title.Contains("Catalog", StringComparison.OrdinalIgnoreCase)) return "/admin/catalog";

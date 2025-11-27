@@ -352,3 +352,75 @@
     padding: 4px 8px;
     font-size: 0.85rem;
 }
+
+/* --- ORDER REVIEW --- */
+
+.review-header {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid var(--toro-bg, #283618);
+    margin-bottom: 1.5rem;
+}
+
+.review-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.client-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+}
+
+.order-items-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+}
+
+.order-item-row {
+    display: grid;
+    /* Grid layout allows for alignment without nested divs */
+    grid-template-columns: 2fr 1fr 2fr;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s;
+}
+
+    .order-item-row:last-child {
+        border-bottom: none;
+    }
+
+    .order-item-row:hover {
+        background-color: #fdfdfd;
+    }
+
+.item-name {
+    font-weight: 600;
+    color: #283618;
+    display: block;
+}
+
+.item-qty {
+    text-align: center;
+    font-weight: bold;
+    color: #666;
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    width: fit-content;
+    margin: 0 auto;
+}
+
+.stock-status {
+    text-align: right;
+    font-size: 0.85rem;
+    font-weight: 600;
+}

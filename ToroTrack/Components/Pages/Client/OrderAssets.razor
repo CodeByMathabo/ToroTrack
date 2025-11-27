@@ -1,8 +1,18 @@
 ﻿@page "/client/order-assets"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @using ToroTrack.Components.Layout
-@* attribute [Authorize(Roles = "Client")] *@
+@using ToroTrack.Data
+@using ToroTrack.Data.Entities
 @rendermode InteractiveServer
+
+@attribute [Authorize(Roles = "Client")]
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject ILogger<OrderAssets> Logger
 
 <PageTitle>Order Assets | Toro Track</PageTitle>
 
@@ -16,7 +26,7 @@
             <div class="cart-summary" @onclick="OpenCartModal">
                 <span class="bi bi-cart3 cart-icon"></span>
                 <span class="cart-count">@Cart.Count</span>
-                <span class="cart-total">R @Cart.Sum(i => i.Price).ToString("N0")</span>
+                <span class="cart-total">R @Cart.Sum(i => i.Cost).ToString("N0")</span>
             </div>
         </div>
     </header>
@@ -28,147 +38,167 @@
         <button class="tab-btn @(ActiveCategory == "Software" ? "active" : "")" @onclick='() => ActiveCategory = "Software"'>Software</button>
     </div>
 
-    @* ASSET CATALOG GRID *@
-    <div class="catalog-grid">
-        @foreach (var item in FilteredCatalog)
+    @* PRODUCT GRID *@
+    <div class="product-grid">
+        @if (isLoading)
         {
-            <div class="asset-card @(item.StockQuantity == 0 && item.Type == "Hardware" ? "out-of-stock" : "")">
-                @* COLORED HEADER *@
-                <div class="card-type-header @item.Type.ToLower()">
-                    <span>@item.Type</span>
-                </div>
-
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h3 class="asset-title">@item.Name</h3>
-                        <span class="price-tag">R @item.Price.ToString("N0")</span>
-                    </div>
-
-                    @* STOCK INDICATOR *@
-                    <div class="mb-2">
-                        @if (item.Type == "Hardware")
-                        {
-                            @if (item.StockQuantity == 0)
-                            {
-                                <span class="stock-badge out">Out of Stock</span>
-                            }
-                            else if (item.StockQuantity < 5)
-                            {
-                                <span class="stock-badge low">Only @item.StockQuantity left!</span>
-                            }
-                            else
-                            {
-                                <span class="stock-badge good">In Stock</span>
-                            }
-                        }
-                        else
-                        {
-                            <span class="stock-badge digital">Digital License</span>
-                        }
-                    </div>
-
-                    <p class="asset-desc">@item.Description</p>
-
-                    @* SMART ACTION BUTTON *@
-                    @if (item.Type == "Hardware" && item.StockQuantity == 0)
-                    {
-                        <button class="btn-add-solid disabled" disabled>
-                            Unavailable
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="btn-add-solid" @onclick="() => AddToCart(item)">
-                            Add to Order
-                        </button>
-                    }
-                </div>
+            <div class="col-12 text-center p-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2 text-muted">Loading catalog...</p>
             </div>
         }
-    </div>
-</div>
-
-@* CHECKOUT MODAL *@
-<ToroModal @bind-IsVisible="isCartVisible" Title="Confirm Order">
-    <div class="cart-modal-content">
-        @if (Cart.Any())
+        else if (!FilteredCatalog.Any())
         {
-            <table class="toro-table mb-4">
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th class="text-end">Price</th>
-                        <th class="text-center">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in Cart)
-                    {
-                        <tr>
-                            <td>
-                                <div class="fw-bold">@item.Name</div>
-                                <small class="text-muted">@item.Type</small>
-                            </td>
-                            <td class="text-end">R @item.Price.ToString("N0")</td>
-                            <td class="text-center">
-                                <button class="btn-remove-solid" @onclick="() => RemoveFromCart(item)">
-                                    Remove
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                    <tr class="total-row">
-                        <td class="fw-bold text-end">TOTAL</td>
-                        <td class="fw-bold text-end">R @Cart.Sum(i => i.Price).ToString("N0")</td>
-                        <td></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="alert alert-info small mb-3">
-                <span class="bi bi-info-circle-fill me-2"></span>
-                <strong>Note:</strong> Placing this order will automatically create "Pending" records in the License Registry for Auditor verification.
-            </div>
-
-            <div class="d-flex justify-content-end gap-2">
-                <button class="btn-secondary-toro" @onclick="() => isCartVisible = false">Keep Shopping</button>
-                <button class="btn-primary-toro" @onclick="PlaceOrder">
-                    Confirm Order
-                </button>
+            <div class="col-12 text-center p-5">
+                <p class="text-muted">No items found in this category.</p>
             </div>
         }
         else
         {
-            <div class="text-center py-5 text-muted">
-                <p class="mb-3">Your cart is empty.</p>
-                <button class="btn-primary-toro mt-3" @onclick="() => isCartVisible = false">Browse Catalog</button>
-            </div>
+            @foreach (var item in FilteredCatalog)
+            {
+                <div class="product-card">
+                    <div class="product-icon">
+                        @if (item.Category == "Hardware")
+                        {
+                            <span class="bi bi-laptop"></span>
+                        }
+                        else
+                        {
+                            <span class="bi bi-disc"></span>
+                        }
+                    </div>
+                    <div class="product-info">
+                        <h5>@item.Name</h5>
+                        <p>@item.Description</p>
+                        <div class="stock-indicator @(item.StockQuantity > 0 ? "in-stock" : "out-stock")">
+                            @if (item.StockQuantity > 0)
+                            {
+                                <span>In Stock (@item.StockQuantity)</span>
+                            }
+                            else
+                            {
+                                <span>Out of Stock</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="product-action">
+                        <span class="price">R @item.Cost.ToString("N0")</span>
+                        <button class="btn-add" @onclick="() => AddToCart(item)" disabled="@(item.StockQuantity <= 0)">
+                            Add
+                        </button>
+                    </div>
+                </div>
+            }
         }
     </div>
-</ToroModal>
+</div>
+
+@* CART MODAL *@
+@if (isCartVisible)
+{
+    <div class="cart-overlay">
+        <div class="cart-sidebar">
+            <div class="cart-header">
+                <h3>Your Request</h3>
+                <button class="btn-close-cart" @onclick="() => isCartVisible = false">×</button>
+            </div>
+            <div class="cart-body">
+                @if (!Cart.Any())
+                {
+                    <div class="empty-state">
+                        <span class="bi bi-cart-x"></span>
+                        <p>Your cart is empty.</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var item in Cart)
+                    {
+                        <div class="cart-item">
+                            <div>
+                                <div class="item-name">@item.Name</div>
+                                <div class="item-price">R @item.Cost.ToString("N0")</div>
+                            </div>
+                            <button class="btn-remove" @onclick="() => RemoveFromCart(item)">
+                                <span class="bi bi-trash"></span>
+                            </button>
+                        </div>
+                    }
+                }
+            </div>
+            <div class="cart-footer">
+                <div class="total-row">
+                    <span>Total</span>
+                    <span>R @Cart.Sum(i => i.Cost).ToString("N0")</span>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-danger mt-2 small">@ErrorMessage</div>
+                }
+                @if (!string.IsNullOrEmpty(SuccessMessage))
+                {
+                    <div class="alert alert-success mt-2 small">@SuccessMessage</div>
+                }
+
+                <button class="btn-checkout" @onclick="PlaceOrder" disabled="@(!Cart.Any() || isProcessing)">
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span> <span>Processing...</span>
+                    }
+                    else
+                    {
+                        <span>Submit Request</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
+    private List<CatalogItem> Catalog = new();
+    private List<CatalogItem> Cart = new();
+    
     private string ActiveCategory = "All";
     private bool isCartVisible = false;
-    private List<CatalogItem> Cart = new();
-
-    // Mock Catalog with STOCK LEVELS
-    private List<CatalogItem> Catalog = new()
-    {
-        new CatalogItem { Id = 1, Name = "Microsoft 365 E5", Type = "Software", Price = 650, Description = "Full suite productivity apps + advanced security.", StockQuantity = 999 },
-        new CatalogItem { Id = 2, Name = "Dell Latitude 5420", Type = "Hardware", Price = 24000, Description = "Standard business laptop, i5, 16GB RAM.", StockQuantity = 15 }, // Plenty
-        new CatalogItem { Id = 4, Name = "27\" 4K Monitor", Type = "Hardware", Price = 6500, Description = "High-resolution display for design and productivity.", StockQuantity = 2 }, // Low Stock
-        new CatalogItem { Id = 6, Name = "Logitech MX Keys", Type = "Hardware", Price = 2200, Description = "Premium wireless illuminated keyboard.", StockQuantity = 0 }, // OUT OF STOCK
-        new CatalogItem { Id = 3, Name = "ESET Endpoint Security", Type = "Software", Price = 120, Description = "Comprehensive antivirus protection.", StockQuantity = 999 }
-    };
+    private bool isProcessing = false;
+    private bool isLoading = true;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
 
     private IEnumerable<CatalogItem> FilteredCatalog =>
-        ActiveCategory == "All" ? Catalog : Catalog.Where(i => i.Type == ActiveCategory);
+        ActiveCategory == "All" ? Catalog : Catalog.Where(i => i.Category == ActiveCategory);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCatalogAsync();
+    }
+
+    private async Task LoadCatalogAsync()
+    {
+        try
+        {
+            isLoading = true;
+            using var context = DbFactory.CreateDbContext();
+            Catalog = await context.CatalogItems.ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load catalog");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
 
     private void AddToCart(CatalogItem item)
     {
-        // Double check stock just in case
-        if (item.Type == "Hardware" && item.StockQuantity <= 0) return;
+        // Basic check to prevent adding out of stock items
+        if (item.StockQuantity <= 0) return;
+        
         Cart.Add(item);
     }
 
@@ -180,22 +210,83 @@
     private void OpenCartModal()
     {
         isCartVisible = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
     }
 
     private async Task PlaceOrder()
     {
-        await Task.Delay(1000);
-        Cart.Clear();
-        isCartVisible = false;
-    }
+        isProcessing = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
 
-    public class CatalogItem
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public string Type { get; set; } = "";
-        public decimal Price { get; set; }
-        public string Description { get; set; } = "";
-        public int StockQuantity { get; set; } // NEW
+        try 
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = await UserManager.GetUserAsync(authState.User);
+            
+            if (user == null) 
+            {
+                ErrorMessage = "User session expired. Please log in again.";
+                return;
+            }
+
+            using var context = DbFactory.CreateDbContext();
+
+            // Find Active Project for Client
+            // Assumption: Client has one active project.
+            var project = await context.Projects
+                .FirstOrDefaultAsync(p => p.ClientId == user.Id && p.Status == "Active");
+
+            if (project == null) 
+            {
+                ErrorMessage = "You do not have an active project associated with your account.";
+                return;
+            }
+
+            // Create Order
+            var newOrder = new AssetOrder
+            {
+                ClientId = user.Id,
+                ProjectId = project.Id,
+                TotalCost = Cart.Sum(i => i.Cost),
+                Status = "Pending",
+                OrderDate = DateTime.UtcNow
+            };
+
+            context.AssetOrders.Add(newOrder);
+            await context.SaveChangesAsync(); 
+
+            // Save Order Items
+            foreach (var item in Cart)
+            {
+                context.OrderItems.Add(new OrderItem
+                {
+                    AssetOrderId = newOrder.Id,
+                    CatalogItemId = item.Id,
+                    Quantity = 1, // Defaulting to 1 for simplicity in this cart logic
+                    PriceAtOrder = item.Cost
+                });
+            }
+            await context.SaveChangesAsync();
+
+            // Clear Cart & Show Success
+            Cart.Clear();
+            SuccessMessage = "Order request placed successfully!";
+            
+            // Close after short delay
+            await Task.Delay(2000);
+            isCartVisible = false;
+            SuccessMessage = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error placing order");
+            ErrorMessage = "An error occurred. Please try again later.";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
     }
 }
