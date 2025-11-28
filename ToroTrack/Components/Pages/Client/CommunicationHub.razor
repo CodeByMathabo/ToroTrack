@@ -1,6 +1,17 @@
 ﻿@page "/client/communication"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using System.ComponentModel.DataAnnotations
 @using ToroTrack.Components.Layout
+@using ToroTrack.Data
+@using ToroTrack.Data.Entities
+
+@inject ILogger<CommunicationHub> Logger
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
 @attribute [Authorize(Roles = "Client")]
 @rendermode InteractiveServer
 
@@ -10,14 +21,13 @@
     <header class="content-header">
         <div>
             <h1 class="page-title">Communication Hub</h1>
-            <p class="page-subtitle">Manage your support tickets and schedule meetings with our team.</p>
+            <p class="page-subtitle">Manage your support tickets and schedule project review meetings.</p>
         </div>
     </header>
 
     @* SPLIT LAYOUT *@
     <div class="hub-grid">
-
-        @* LEFT PANEL: HELP DESK (Queries) *@
+        @* LEFT PANEL: HELP DESK *@
         <section class="hub-panel help-desk-panel">
             <div class="panel-header">
                 <div>
@@ -30,33 +40,36 @@
             </div>
 
             <div class="panel-content-scroll">
-                @if (MyQueries.Any())
+                @if (IsLoading)
+                {
+                    <div class="p-4 text-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2"></div> Loading data...
+                    </div>
+                }
+                else if (PendingQueries.Any())
                 {
                     <div class="list-group">
-                        @foreach (var query in MyQueries)
+                        @foreach (var query in PendingQueries.OrderByDescending(q => q.DateSubmitted))
                         {
                             <div class="list-group-item query-item @(query.IsResolved ? "resolved" : "")">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h5 class="mb-1">@query.Subject</h5>
-                                    <small class="text-muted">#@query.TicketId</small>
+                                    <small class="text-muted">#@query.Id</small>
                                 </div>
-                                <p class="mb-1 text-truncate">@query.Message</p>
-
-                                @* Date left, Status right (Blue Text) *@
-                                <div class="query-meta-row">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-light text-dark border my-1">@query.ProjectName</span>
                                     <small class="text-muted">@query.DateSubmitted.ToString("MMM dd, HH:mm")</small>
-                                    <span class="status-text">
-                                        @if (query.IsResolved)
-                                        {
-                                            <span class="bi bi-check2-circle me-1"></span> 
-                                            @("Resolved")
-                                        }
-                                        else
-                                        {
-                                            <span class="bi bi-hourglass-split me-1"></span> 
-                                            @("Pending")
-                                        }
-                                    </span>
+                                </div>
+                                <p class="mb-1 text-truncate text-muted small">@query.PreviewText</p>
+                                <div class="mt-2 text-end">
+                                    @if (query.IsResolved)
+                                    {
+                                        <span class="status-text text-success"><span class="bi bi-check2-circle me-1"></span> Resolved</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-text text-warning"><span class="bi bi-hourglass-split me-1"></span> Pending Review</span>
+                                    }
                                 </div>
                             </div>
                         }
@@ -76,40 +89,36 @@
         <section class="hub-panel schedule-panel">
             <div class="panel-header">
                 <div>
-                    <h2 class="panel-title"><span class="bi bi-calendar-event me-2"></span> Meeting Schedule</h2>
-                    <p class="panel-desc">Book a time to discuss project progress.</p>
+                    <h2 class="panel-title"><span class="bi bi-calendar-event me-2"></span> Project Reviews</h2>
+                    <p class="panel-desc">Book a time to review specific project stages.</p>
                 </div>
                 <button class="btn-panel-action" @onclick="OpenMeetingModal">
-                    <span class="bi bi-plus-lg me-2"></span> Schedule Meeting
+                    <span class="bi bi-plus-lg me-2"></span> Schedule Review
                 </button>
             </div>
 
             <div class="panel-content-scroll">
-                @if (MyMeetings.Any())
+                @if (UpcomingMeetings.Any())
                 {
                     <div class="list-group">
-                        @foreach (var meeting in MyMeetings.OrderBy(m => m.DateTime))
+                        @foreach (var meeting in UpcomingMeetings.OrderBy(m => m.Date))
                         {
-                            <div class="list-group-item meeting-item @(meeting.DateTime < DateTime.Now ? "past" : "")">
+                            <div class="list-group-item meeting-item @(meeting.Date < DateTime.Now ? "past" : "")">
                                 <div class="d-flex w-100 justify-content-between align-items-center">
-                                    <h5 class="mb-1">@meeting.Topic</h5>
-                                    @if (meeting.DateTime < DateTime.Now)
-                                    {
-                                        <span class="badge bg-secondary">Past</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-primary">Upcoming</span>
-                                    }
+                                    <h5 class="mb-1">@meeting.Title</h5>
+                                    <span class="badge @(meeting.Date < DateTime.Now ? "bg-secondary" : "bg-primary")">
+                                        @(meeting.Date < DateTime.Now ? "Past" : "Upcoming")
+                                    </span>
                                 </div>
+                                <small class="d-block text-primary fw-bold mb-1">@meeting.ProjectName</small>
                                 <div class="meeting-details mt-2">
                                     <div>
                                         <span class="bi bi-calendar-day me-2 text-muted"></span>
-                                        <strong>@meeting.DateTime.ToString("dddd, MMMM dd")</strong>
+                                        <strong>@meeting.Date.ToString("dddd, MMMM dd")</strong>
                                     </div>
                                     <div>
                                         <span class="bi bi-clock me-2 text-muted"></span>
-                                        @meeting.DateTime.ToString("HH:mm") - @meeting.DateTime.AddMinutes(meeting.DurationMinutes).ToString("HH:mm")
+                                        @meeting.Date.ToString("HH:mm") - @meeting.Date.AddMinutes(meeting.DurationMinutes).ToString("HH:mm")
                                     </div>
                                     @if (!string.IsNullOrEmpty(meeting.MeetingLink))
                                     {
@@ -128,7 +137,7 @@
                 {
                     <div class="empty-panel-state">
                         <span class="bi bi-calendar-x fs-1 text-muted"></span>
-                        <p>No upcoming meetings scheduled.</p>
+                        <p>No upcoming reviews scheduled.</p>
                     </div>
                 }
             </div>
@@ -136,74 +145,128 @@
     </div>
 </div>
 
+@* --- SNACKBAR NOTIFICATION --- *@
+@if (showSnackbar)
+{
+    <div class="toro-snackbar @snackbarType">
+        <span class="@snackbarIcon me-2"></span> @snackbarMessage
+    </div>
+}
+
 @* --- MODALS --- *@
 
-@* RAISE QUERY MODAL *@
+@* 1. RAISE QUERY MODAL *@
 <ToroModal @bind-IsVisible="isQueryModalVisible" Title="Submit a Query">
     <EditForm Model="QueryInput" OnValidSubmit="HandleQuerySubmit">
         <DataAnnotationsValidator />
-        <p class="text-muted mb-4 small">Your query will be sent to the Admin team.</p>
+        <p class="text-muted mb-4 small">Your query will be sent to the Admin team for review.</p>
+
+        <div class="form-group mb-3">
+            <label class="small-label">Relevant Project</label>
+            <InputSelect @bind-Value="QueryInput.ProjectId" class="form-select">
+                <option value="0">-- Select Project --</option>
+                @foreach (var proj in ActiveProjects)
+                {
+                    <option value="@proj.Id">@proj.Name</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => QueryInput.ProjectId)" class="text-danger" />
+        </div>
+
         <div class="form-group mb-3">
             <label class="small-label">Subject</label>
             <InputText @bind-Value="QueryInput.Subject" class="form-control" placeholder="e.g. Login Issue..." />
             <ValidationMessage For="@(() => QueryInput.Subject)" class="text-danger" />
         </div>
+
         <div class="form-group mb-3">
             <label class="small-label">Message</label>
-            <InputTextArea @bind-Value="QueryInput.Message" class="form-control" rows="5" placeholder="Describe issue..." />
-            <ValidationMessage For="@(() => QueryInput.Message)" class="text-danger" />
+            <InputTextArea @bind-Value="QueryInput.PreviewText" class="form-control" rows="5" placeholder="Describe the issue..." />
+            <ValidationMessage For="@(() => QueryInput.PreviewText)" class="text-danger" />
         </div>
+
         <div class="d-flex justify-content-end gap-2 mt-4">
             <button type="button" class="btn-cancel-modal" @onclick="() => isQueryModalVisible = false">Cancel</button>
-            <button type="submit" class="btn-primary-toro"><span class="bi bi-send-fill me-2"></span> Submit</button>
+            <button type="submit" class="btn-primary-toro">
+                <span class="bi bi-send-fill me-2"></span> Submit
+            </button>
         </div>
     </EditForm>
 </ToroModal>
 
-@* SCHEDULE MEETING MODAL *@
-<ToroModal @bind-IsVisible="isMeetingModalVisible" Title="Schedule a Meeting">
+@* 2. SCHEDULE MEETING MODAL *@
+<ToroModal @bind-IsVisible="isMeetingModalVisible" Title="Schedule Project Review">
     <EditForm Model="MeetingInput" OnValidSubmit="HandleMeetingSubmit">
         <DataAnnotationsValidator />
 
         <p class="text-muted mb-4 small">
-            Request a meeting time. An admin will confirm the slot and send a calendar invite.
+            Select a project and stage to schedule a review session.
         </p>
 
+        @* PROJECT SELECTION *@
         <div class="form-group mb-3">
-            <label class="small-label">Topic / Purpose</label>
-            <InputText @bind-Value="MeetingInput.Topic" class="form-control" placeholder="e.g. Stage 2 Progress Review" />
-            <ValidationMessage For="@(() => MeetingInput.Topic)" class="text-danger" />
+            <label class="small-label">Project</label>
+            <InputSelect Value="MeetingInput.ProjectId"
+                         ValueChanged="@((int id) => OnMeetingProjectChanged(id))"
+                         ValueExpression="@(() => MeetingInput.ProjectId)"
+                         class="form-select">
+                <option value="0">-- Select Project --</option>
+                @foreach (var proj in ActiveProjects)
+                {
+                    <option value="@proj.Id">@proj.Name</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => MeetingInput.ProjectId)" class="text-danger" />
         </div>
 
-        <div class="row">
-            <div class="col-md-7">
-                <div class="form-group mb-3">
-                    <label class="small-label">Date & Start Time</label>
-                    <InputDate Type="InputDateType.DateTimeLocal" @bind-Value="MeetingInput.DateTime" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
-                    <ValidationMessage For="@(() => MeetingInput.DateTime)" class="text-danger" />
-                </div>
-            </div>
-            <div class="col-md-5">
-                <div class="form-group mb-3">
-                    <label class="small-label">Duration</label>
-                    <InputSelect @bind-Value="MeetingInput.DurationMinutes" class="form-select">
-                        <option value="30">30 Minutes</option>
-                        <option value="45">45 Minutes</option>
-                        <option value="60">1 Hour</option>
-                    </InputSelect>
-                </div>
+        @* STAGE SELECTION *@
+        <div class="form-group mb-3">
+            <label class="small-label">Project Stage to Review</label>
+            <InputSelect @bind-Value="MeetingInput.Title" class="form-select" disabled="@(MeetingInput.ProjectId == 0)">
+                @if (MeetingInput.ProjectId == 0)
+                {
+                    <option value="">(Select a project first)</option>
+                }
+                else if (!AvailableStages.Any())
+                {
+                    @* Fix: Give this a value so validation passes *@
+                    <option value="General Check-In">General Catch-up (No stages found)</option>
+                }
+                else
+                {
+                    <option value="">-- Select a Stage --</option>
+                    @foreach (var stage in AvailableStages)
+                    {
+                        <option value="@($"{stage} Review")">@stage</option>
+                    }
+                    <option value="General Project Catch-up">General Project Catch-up</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => MeetingInput.Title)" class="text-danger" />
+        </div>
+
+        <div class="col-md-7">
+            <div class="form-group mb-3">
+                <label class="small-label">Date & Start Time</label>
+                @* Added stopPropagation to prevent Enter key from submitting while picking dates *@
+                <InputDate Type="InputDateType.DateTimeLocal"
+                           @bind-Value="MeetingInput.Date"
+                           class="form-control"
+                           min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")"
+                           @onkeydown:stopPropagation />
+                <ValidationMessage For="@(() => MeetingInput.Date)" class="text-danger" />
             </div>
         </div>
 
         <div class="form-group mb-3">
-            <label class="small-label">Additional Notes (Optional)</label>
-            <InputTextArea @bind-Value="MeetingInput.Notes" class="form-control" rows="3" placeholder="Any specific agenda items?" />
+            <label class="small-label">Specific Questions / Agenda</label>
+            <InputTextArea @bind-Value="MeetingInput.Description" class="form-control" rows="3" placeholder="What specific items do you want to cover?" />
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">
             <button type="button" class="btn-cancel-modal" @onclick="() => isMeetingModalVisible = false">Cancel</button>
             <button type="submit" class="btn-primary-toro">
-                <span class="bi bi-calendar-plus-fill me-2"></span> Request Meeting
+                <span class="bi bi-calendar-check-fill me-2"></span> Confirm Request
             </button>
         </div>
     </EditForm>
@@ -213,58 +276,298 @@
     // --- STATE ---
     private bool isQueryModalVisible = false;
     private bool isMeetingModalVisible = false;
-    private List<QueryTicket> MyQueries = new();
-    private List<ClientMeeting> MyMeetings = new();
+    private bool IsLoading = true;
+    private ApplicationUser? CurrentUser;
 
+    // Snackbar State
+    private bool showSnackbar = false;
+    private string snackbarMessage = "";
+    private string snackbarType = "success";
+    private string snackbarIcon = "bi-check-circle-fill";
+
+    // Data lists
+    private List<ClientQueryViewModel> PendingQueries = new();
+    private List<MeetingViewModel> UpcomingMeetings = new();
+    private List<Project> ActiveProjects = new();
+    private List<string> AvailableStages = new();
+
+    // Form Models
     [SupplyParameterFromForm(FormName = "QueryForm")]
-    private QueryInputModel QueryInput { get; set; } = new();
+    private ClientQueryViewModel QueryInput { get; set; } = new();
 
     [SupplyParameterFromForm(FormName = "MeetingForm")]
-    private MeetingInputModel MeetingInput { get; set; } = new() { DateTime = DateTime.Now.AddDays(1).Date.AddHours(10) }; // Default to tomorrow 10am
+    private MeetingViewModel MeetingInput { get; set; } = new();
 
-    // --- MODELS ---
-    public class QueryTicket { public string TicketId { get; set; } = ""; public string Subject { get; set; } = ""; public string Message { get; set; } = ""; public DateTime DateSubmitted { get; set; } public bool IsResolved { get; set; } }
-    public class QueryInputModel { [System.ComponentModel.DataAnnotations.Required] public string Subject { get; set; } = ""; [System.ComponentModel.DataAnnotations.Required] public string Message { get; set; } = ""; }
-
-    // NEW MODELS
-    public class ClientMeeting
+    // --- VIEW MODELS ---
+    public class ClientQueryViewModel
     {
         public int Id { get; set; }
-        public string Topic { get; set; } = "";
-        public DateTime DateTime { get; set; }
-        public int DurationMinutes { get; set; }
-        public string MeetingLink { get; set; } = ""; // Populated by Admin later
+
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a project")]
+        public int ProjectId { get; set; }
+
+        public string ProjectName { get; set; } = "";
+
+        [Required(ErrorMessage = "Subject is required")]
+        public string Subject { get; set; } = "";
+
+        [Required(ErrorMessage = "Message is required")]
+        public string PreviewText { get; set; } = "";
+
+        public DateTime DateSubmitted { get; set; } = DateTime.Now;
+        public bool IsResolved { get; set; } = false;
     }
 
-    public class MeetingInputModel
+    public class MeetingViewModel
     {
-        [System.ComponentModel.DataAnnotations.Required] public string Topic { get; set; } = "";
-        [System.ComponentModel.DataAnnotations.Required] public DateTime DateTime { get; set; }
+        public int Id { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a project")]
+        public int ProjectId { get; set; }
+
+        public string ProjectName { get; set; } = "";
+
+        [Required(ErrorMessage = "Please select a topic/stage")]
+        public string Title { get; set; } = "";
+
+        [Required]
+        public DateTime Date { get; set; }
+
+        public string Description { get; set; } = "";
         public int DurationMinutes { get; set; } = 30;
-        public string Notes { get; set; } = "";
+        public string MeetingLink { get; set; } = "";
     }
 
-    // --- LOGIC ---
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Mock Queries
-        MyQueries = new List<QueryTicket>
+        try
         {
-             new QueryTicket { TicketId = "1042", Subject = "Azure Access Issue", Message = "We are unable to login...", DateSubmitted = DateTime.Now.AddHours(-2), IsResolved = false },
-             new QueryTicket { TicketId = "998", Subject = "Invoice Clarification", Message = "Can you explain the line item...", DateSubmitted = DateTime.Now.AddDays(-5), IsResolved = true }
-        };
-
-        // Mock Meetings
-        MyMeetings = new List<ClientMeeting>
+            IsLoading = true;
+            MeetingInput.Date = DateTime.Now.AddDays(1).Date.AddHours(10);
+            await LoadUserDataAsync();
+        }
+        catch (Exception ex)
         {
-            new ClientMeeting { Id = 1, Topic = "Project Kick-off", DateTime = DateTime.Now.AddDays(-10), DurationMinutes = 60, MeetingLink = "https://teams.microsoft.com/l/meetup-join/..." },
-            new ClientMeeting { Id = 2, Topic = "Stage 1 Review", DateTime = DateTime.Now.AddDays(2).AddHours(14), DurationMinutes = 45, MeetingLink = "" } // Upcoming, no link yet
-        };
+            Logger.LogError(ex, "Error initializing Communication Hub.");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
-    private void OpenQueryModal() { QueryInput = new QueryInputModel(); isQueryModalVisible = true; }
-    private void HandleQuerySubmit() { /* Sim sending */ MyQueries.Insert(0, new QueryTicket { TicketId = "9999", Subject = QueryInput.Subject, Message = QueryInput.Message, DateSubmitted = DateTime.Now, IsResolved = false }); isQueryModalVisible = false; }
+    private async Task LoadUserDataAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        CurrentUser = await UserManager.GetUserAsync(authState.User);
+        if (CurrentUser == null) return;
 
-    private void OpenMeetingModal() { MeetingInput = new MeetingInputModel { DateTime = DateTime.Now.AddDays(1).Date.AddHours(10) }; isMeetingModalVisible = true; }
-    private void HandleMeetingSubmit() { /* Sim sending request */ MyMeetings.Add(new ClientMeeting { Id = 99, Topic = MeetingInput.Topic, DateTime = MeetingInput.DateTime, DurationMinutes = MeetingInput.DurationMinutes }); isMeetingModalVisible = false; }
+        using var context = DbFactory.CreateDbContext();
+
+        ActiveProjects = await context.Projects
+            .Include(p => p.Tasks)
+            .Where(p => p.ClientId == CurrentUser.Id && p.Status == "Active")
+            .ToListAsync();
+
+        var clientTasks = await context.ProjectTasks
+            .Include(t => t.Project)
+            .Where(t => t.Project.ClientId == CurrentUser.Id && (t.Status == "PendingReview" || t.Status == "Done"))
+            .OrderByDescending(t => t.CompletedDate)
+            .ToListAsync();
+
+        PendingQueries = clientTasks.Select(t => new ClientQueryViewModel
+        {
+            Id = t.Id,
+            ProjectId = t.ProjectId,
+            ProjectName = t.Project?.Name ?? "Unknown Project",
+            Subject = t.Title,
+            PreviewText = t.Description,
+            IsResolved = t.Status == "Done",
+            DateSubmitted = t.CompletedDate ?? t.StartDate
+        }).ToList();
+
+        // Load meetings
+        var meetings = await context.Meetings
+            .Include(m => m.Project)
+            .Where(m => m.ClientId == CurrentUser.Id)
+            .OrderBy(m => m.Date)
+            .ToListAsync();
+
+        UpcomingMeetings = meetings.Select(m => new MeetingViewModel
+        {
+            Id = m.Id,
+            ProjectId = m.ProjectId ?? 0,
+            ProjectName = m.Project?.Name ?? "General",
+            Title = m.Title,
+            Date = m.Date,
+            Description = m.Description,
+            DurationMinutes = m.DurationMinutes,
+            MeetingLink = m.MeetingLink ?? ""
+        }).ToList();
+    }
+
+    private void OpenQueryModal()
+    {
+        QueryInput = new ClientQueryViewModel();
+        if (ActiveProjects.Count == 1) QueryInput.ProjectId = ActiveProjects[0].Id;
+        isQueryModalVisible = true;
+    }
+
+    private void OpenMeetingModal()
+    {
+        // Reset and set default date
+        MeetingInput = new MeetingViewModel { Date = DateTime.Now.AddDays(1).Date.AddHours(10) };
+        AvailableStages.Clear();
+
+        // Auto-select if only one project exists
+        if (ActiveProjects.Count == 1) OnMeetingProjectChanged(ActiveProjects[0].Id);
+
+        isMeetingModalVisible = true;
+    }
+
+    // Fix: This handles logic when a project is selected
+    private void OnMeetingProjectChanged(int projectId)
+    {
+        MeetingInput.ProjectId = projectId;
+        AvailableStages.Clear();
+
+        var selectedProject = ActiveProjects.FirstOrDefault(p => p.Id == projectId);
+        if (selectedProject != null)
+        {
+            AvailableStages = selectedProject.Tasks
+                .Where(t => t.Title.StartsWith("Stage"))
+                .OrderBy(t => t.Title)
+                .Select(t => t.Title)
+                .ToList();
+
+            // Fix: If no stages found, set a default title immediately so Validation doesn't fail on empty string
+            if (!AvailableStages.Any())
+            {
+                MeetingInput.Title = "General Project Catch-up";
+            }
+            else
+            {
+                MeetingInput.Title = ""; // Force user to select a stage
+            }
+        }
+        else
+        {
+            MeetingInput.Title = "";
+        }
+
+        // Debugging to see what's happening
+        Console.WriteLine($"Project changed to {projectId}. Stages found: {AvailableStages.Count}. Title set to: '{MeetingInput.Title}'");
+    }
+
+    private async Task HandleQuerySubmit()
+    {
+        if (CurrentUser == null) return;
+
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            var newTask = new ProjectTask
+            {
+                ProjectId = QueryInput.ProjectId,
+                Title = QueryInput.Subject,
+                Description = QueryInput.PreviewText,
+                Status = "PendingReview",
+                Priority = "High",
+                StartDate = DateTime.UtcNow,
+                CompletedDate = DateTime.UtcNow,
+                AssignedToId = ""
+            };
+
+            context.ProjectTasks.Add(newTask);
+            await context.SaveChangesAsync();
+
+            isQueryModalVisible = false;
+            await ShowSnackbar("Query submitted successfully!", "success");
+            await LoadUserDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error submitting query.");
+            await ShowSnackbar("Failed to submit query. Please try again.", "error");
+        }
+    }
+
+    private async Task HandleMeetingSubmit()
+    {
+        Console.WriteLine("HandleMeetingSubmit triggered...");
+
+        if (CurrentUser == null)
+        {
+            await ShowSnackbar("User session invalid. Please refresh.", "error");
+            return;
+        }
+
+        // Validate Project
+        if (MeetingInput.ProjectId <= 0)
+        {
+            await ShowSnackbar("Please select a valid project.", "error");
+            return;
+        }
+
+        // Validate Date (Must be in future)
+        if (MeetingInput.Date <= DateTime.Now)
+        {
+            await ShowSnackbar("Please select a future date and time.", "error");
+            return;
+        }
+
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+
+            // We use SpecifyKind to force it to UTC without shifting the hours.
+            var safeDate = DateTime.SpecifyKind(MeetingInput.Date, DateTimeKind.Utc);
+
+            var newMeeting = new Meeting
+            {
+                ClientId = CurrentUser.Id,
+                ProjectId = MeetingInput.ProjectId,
+                Title = MeetingInput.Title ?? "General Project Review",
+                Description = MeetingInput.Description ?? "",
+                Date = safeDate,
+                DurationMinutes = MeetingInput.DurationMinutes,
+                MeetingLink = "",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.Meetings.Add(newMeeting);
+            await context.SaveChangesAsync();
+
+            Console.WriteLine($"Meeting saved successfully. ID: {newMeeting.Id}");
+
+            isMeetingModalVisible = false;
+            await ShowSnackbar("Meeting request sent successfully!", "success");
+
+            // Refresh list
+            await LoadUserDataAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log the inner exception to see the real DB error if it happens again
+            var innerMessage = ex.InnerException?.Message ?? ex.Message;
+            Logger.LogError(ex, "Error submitting meeting request: {Message}", innerMessage);
+            Console.WriteLine($"DB SAVE ERROR: {innerMessage}");
+
+            await ShowSnackbar("Failed to schedule meeting. Please try again.", "error");
+        }
+    }
+
+    private async Task ShowSnackbar(string message, string type)
+    {
+        snackbarMessage = message;
+        snackbarType = type == "success" ? "snackbar-success" : "snackbar-error";
+        snackbarIcon = type == "success" ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill";
+
+        showSnackbar = true;
+        StateHasChanged();
+
+        await Task.Delay(3000);
+        showSnackbar = false;
+        StateHasChanged();
+    }
 }

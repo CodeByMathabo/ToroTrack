@@ -15,5 +15,6 @@ namespace ToroTrack.Data
         public DbSet<PendingInvite> PendingInvites { get; set; }
         public DbSet<AssetOrder> AssetOrders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
+        public DbSet<Meeting> Meetings { get; set; }
     }
 }

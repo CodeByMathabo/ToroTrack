@@ -1,7 +1,17 @@
 @page "/admin/overview"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @using ToroTrack.Components.Layout
+@using ToroTrack.Data
+@using ToroTrack.Data.Entities
+
+@attribute [Authorize(Roles = "Admin")]
 @rendermode InteractiveServer
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject UserManager<ApplicationUser> UserManager
+@inject ILogger<Overview> Logger
 
 <PageTitle>Overview | Toro Track</PageTitle>
 
@@ -14,6 +24,7 @@
         </div>
     </header>
 
+    @* --- STATISTICS CARDS --- *@
     <div class="stats-container">
         <div class="stat-card">
             <span class="stat-title">Total Clients</span>
@@ -29,30 +40,45 @@
         </div>
     </div>
 
+    @* --- PENDING ITEMS FEED --- *@
     <div class="section-wrapper">
-        <h3 class="section-title">Pending Client Queries</h3>
-        <p class="text-muted mb-4">Recent questions submitted by clients requiring your attention.</p>
+        <h3 class="section-title">Pending Client Attention</h3>
+        <p class="text-muted mb-4">Recent tasks or queries submitted by clients requiring your attention.</p>
 
         <div class="queries-grid">
-            @foreach (var query in PendingQueries)
+            @if (IsLoading)
             {
-                <div class="query-card">
-                    <div class="query-header">
-                        <span class="client-badge">@query.ClientName</span>
-                        <span class="date-badge">@query.DateSubmitted</span>
-                    </div>
-                    <h4 class="query-subject">@query.Subject</h4>
-                    <p class="query-preview">@query.PreviewText</p>
-                    <div class="query-actions">
-                        <button class="btn-reply-toro" @onclick="() => OpenReplyModal(query)">
-                            <span class="bi bi-reply-fill me-2"></span> Respond
-                        </button>
-                    </div>
+                <div class="p-4 text-muted fst-italic">Loading pending items...</div>
+            }
+            else if (!PendingQueries.Any())
+            {
+                <div class="p-4 text-success border rounded bg-light">
+                    <span class="bi bi-check-circle-fill me-2"></span> All caught up! No pending items.
                 </div>
+            }
+            else
+            {
+                @foreach (var query in PendingQueries)
+                {
+                    <div class="query-card">
+                        <div class="query-header">
+                            <span class="client-badge">@query.ClientName</span>
+                            <span class="date-badge">@query.DateSubmitted</span>
+                        </div>
+                        <h4 class="query-subject">@query.Subject</h4>
+                        <p class="query-preview">@query.PreviewText</p>
+                        <div class="query-actions">
+                            <button class="btn-reply-toro" @onclick="() => OpenReplyModal(query)">
+                                <span class="bi bi-reply-fill me-2"></span> Review
+                            </button>
+                        </div>
+                    </div>
+                }
             }
         </div>
     </div>
 
+    @* --- ACTION BUTTONS --- *@
     <div class="actions-row mt-5">
         <button class="action-btn-card" @onclick="() => ShowModal(ModalType.Licenses)">
             <span class="bi bi-card-checklist d-block mb-2 fs-3"></span>
@@ -72,25 +98,32 @@
 
 </div>
 
-<ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
+@* --- SNACKBAR NOTIFICATION --- *@
+@if (showSnackbar)
+{
+    <div class="toro-snackbar @snackbarType">
+        <span class="@snackbarIcon me-2"></span> @snackbarMessage
+    </div>
+}
 
+@* --- MODALS --- *@
+<ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
     @if (currentModal == ModalType.ReplyQuery && selectedQuery != null)
     {
         <div class="reply-context">
-            <label class="small-label">Client Query:</label>
+            <label class="small-label">Item Context:</label>
             <p class="p-3 bg-light rounded">@selectedQuery.PreviewText</p>
         </div>
         <div class="form-group mt-3">
-            <label class="small-label">Your Response:</label>
+            <label class="small-label">Quick Response / Note:</label>
             <textarea class="form-control mt-1" rows="5" placeholder="Type your resolution here..."></textarea>
         </div>
         <div class="mt-3 text-end">
-            <button class="btn-primary-toro" @onclick="() => isModalVisible = false">
-                <span class="bi bi-send-fill me-2"></span> Send Response
+            <button class="btn-primary-toro" @onclick="MarkQueryResolved">
+                <span class="bi bi-send-fill me-2"></span> Mark Resolved
             </button>
         </div>
     }
-
     else if (currentModal == ModalType.Licenses)
     {
         <table class="toro-table">
@@ -112,15 +145,9 @@
                     <td>SQL Server Enterprise</td>
                     <td class="text-center">Nov 12, 2025</td>
                 </tr>
-                <tr>
-                    <td><strong>Retail Corp</strong></td>
-                    <td>Microsoft 365 E5</td>
-                    <td class="text-center">Dec 05, 2025</td>
-                </tr>
             </tbody>
         </table>
     }
-
     else if (currentModal == ModalType.Meetings)
     {
         <table class="toro-table">
@@ -145,59 +172,54 @@
             </tbody>
         </table>
     }
-
     else if (currentModal == ModalType.Users)
     {
         <table class="toro-table">
             <thead>
                 <tr>
                     <th style="width: 40%">User Name</th>
-                    <th style="width: 30%">Role</th>
+                    <th style="width: 30%">Email</th>
                     <th style="width: 30%; text-align: center;">Status</th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="rounded-circle bg-success" style="width: 8px; height: 8px;"></div>
-                            Admin User
-                        </div>
-                    </td>
-                    <td>Administrator</td>
-                    <td class="text-success text-center">Online</td>
-                </tr>
-                <tr>
-                    <td>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="rounded-circle bg-warning" style="width: 8px; height: 8px;"></div>
-                            John Doe
-                        </div>
-                    </td>
-                    <td>Auditor</td>
-                    <td class="text-warning text-center">Away</td>
-                </tr>
-                <tr>
-                    <td>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="rounded-circle bg-success" style="width: 8px; height: 8px;"></div>
-                            Sarah Smith
-                        </div>
-                    </td>
-                    <td>Client Lead</td>
-                    <td class="text-success text-center">Online</td>
-                </tr>
+                @foreach (var user in InternalUsers)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-success" style="width: 8px; height: 8px;"></div>
+                                @user.UserName
+                            </div>
+                        </td>
+                        <td>@user.Email</td>
+                        <td class="text-success text-center">Active</td>
+                    </tr>
+                }
             </tbody>
         </table>
     }
 </ToroModal>
 
 @code {
-    // --- DATA MODELS ---
-    public class DashboardStats { public int TotalClients { get; set; } public int ActiveProjects { get; set; } public int DeliveredAssets { get; set; } }
-    public class ClientQuery { public int Id { get; set; } public string ClientName { get; set; } = ""; public string Subject { get; set; } = ""; public string PreviewText { get; set; } = ""; public string DateSubmitted { get; set; } = ""; }
+    // --- MODELS ---
+    public class DashboardStats
+    {
+        public int TotalClients { get; set; }
+        public int ActiveProjects { get; set; }
+        public int DeliveredAssets { get; set; }
+    }
 
-    public class Meeting
+    public class ClientQuery
+    {
+        public int Id { get; set; }
+        public string ClientName { get; set; } = "";
+        public string Subject { get; set; } = "";
+        public string PreviewText { get; set; } = "";
+        public string DateSubmitted { get; set; } = "";
+    }
+
+    public class MeetingDTO
     {
         public string Date { get; set; } = "";
         public string ClientName { get; set; } = "";
@@ -205,36 +227,103 @@
         public string Description { get; set; } = "";
     }
 
+    public class InternalUserViewModel
+    {
+        public string UserName { get; set; } = "";
+        public string Email { get; set; } = "";
+    }
+
     // --- STATE ---
     private DashboardStats Stats = new();
     private List<ClientQuery> PendingQueries = new();
-    private List<Meeting> UpcomingMeetings = new();
+    private List<MeetingDTO> UpcomingMeetings = new();
+    private List<InternalUserViewModel> InternalUsers = new();
 
     private bool isModalVisible = false;
+    private bool IsLoading = true;
     private string modalTitle = "";
     private ModalType currentModal;
     private ClientQuery? selectedQuery;
 
+    // Snackbar State
+    private bool showSnackbar = false;
+    private string snackbarMessage = "";
+    private string snackbarType = "success";
+    private string snackbarIcon = "bi-check-circle-fill";
+
     private enum ModalType { Licenses, Meetings, Users, ReplyQuery }
 
-    // --- LOGIC ---
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        Stats = new DashboardStats { TotalClients = 12, ActiveProjects = 5, DeliveredAssets = 148 };
-
-        PendingQueries = new List<ClientQuery>
+        try
         {
-            new ClientQuery { Id = 1, ClientName = "Logistics Co", Subject = "Azure Access Issue", PreviewText = "We are unable to login to the UAT environment since Monday...", DateSubmitted = "2 hrs ago" },
-            new ClientQuery { Id = 2, ClientName = "Retail Corp", Subject = "Report Discrepancy", PreviewText = "The monthly audit report shows different values than the dashboard...", DateSubmitted = "Yesterday" }
-        };
-
-        // Using specific dates
-        UpcomingMeetings = new List<Meeting>
+            IsLoading = true;
+            await LoadDashboardDataAsync();
+        }
+        catch (Exception ex)
         {
-            new Meeting { Date = "Nov 20, 2025 14:00", ClientName = "Logistics Co", Title = "Sprint Review", Description = "Weekly sync on Azure migration progress." },
-            new Meeting { Date = "Nov 21, 2025 09:00", ClientName = "Toro Internal", Title = "Audit Check", Description = "Internal review of compliance module." },
-            new Meeting { Date = "Nov 24, 2025 11:30", ClientName = "Retail Corp", Title = "Project Kickoff", Description = "Stakeholder meeting for asset tracking." }
-        };
+            Logger.LogError(ex, "Failed to load dashboard data");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadDashboardDataAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+
+        var clients = await UserManager.GetUsersInRoleAsync("Client");
+        Stats.TotalClients = clients.Count;
+        Stats.ActiveProjects = await context.Projects.CountAsync(p => p.Status == "Active");
+        Stats.DeliveredAssets = await context.ClientAssets.CountAsync();
+
+        var pendingTasks = await context.ProjectTasks
+            .Include(t => t.Project)
+                .ThenInclude(p => p.Client)
+            .Where(t => t.Status == "PendingReview")
+            .OrderByDescending(t => t.CompletedDate)
+            .Take(10)
+            .ToListAsync();
+
+        PendingQueries = pendingTasks.Select(t => new ClientQuery
+        {
+            Id = t.Id,
+            ClientName = t.Project?.Client != null
+                ? $"{t.Project.Client.FirstName} {t.Project.Client.LastName}"
+                : (t.Project?.Name ?? "Unknown"),
+            Subject = t.Title,
+            PreviewText = t.Description,
+            DateSubmitted = t.CompletedDate.HasValue
+                ? GetTimeAgo(t.CompletedDate.Value)
+                : "Recently"
+        }).ToList();
+
+        var allUsers = await UserManager.Users.ToListAsync();
+        var clientIds = clients.Select(c => c.Id).ToHashSet();
+        InternalUsers = allUsers
+            .Where(u => !clientIds.Contains(u.Id))
+            .Select(u => new InternalUserViewModel
+            {
+                UserName = $"{u.FirstName} {u.LastName}",
+                Email = u.Email ?? ""
+            })
+            .ToList();
+
+        var realMeetings = await context.Meetings
+            .Include(m => m.Client)
+            .Where(m => m.Date >= DateTime.UtcNow.AddDays(-1))
+            .OrderBy(m => m.Date)
+            .ToListAsync();
+
+        UpcomingMeetings = realMeetings.Select(m => new MeetingDTO
+        {
+            Date = m.Date.ToString("MMM dd, HH:mm"),
+            ClientName = m.Client != null ? $"{m.Client.FirstName} {m.Client.LastName}" : "Unknown",
+            Title = m.Title,
+            Description = m.Description
+        }).ToList();
     }
 
     private void ShowModal(ModalType type)
@@ -242,21 +331,61 @@
         currentModal = type;
         selectedQuery = null;
         isModalVisible = true;
-
-        modalTitle = type switch
-        {
-            ModalType.Licenses => "Expiring Licenses",
-            ModalType.Meetings => "Meetings",
-            ModalType.Users => "Active Internal Users",
-            _ => "Details"
-        };
+        modalTitle = type.ToString();
     }
 
     private void OpenReplyModal(ClientQuery query)
     {
         currentModal = ModalType.ReplyQuery;
         selectedQuery = query;
-        modalTitle = $"Replying to {query.ClientName}";
+        modalTitle = $"Reviewing item for {query.ClientName}";
         isModalVisible = true;
+    }
+
+    // --- ACTIONS ---
+
+    private async Task MarkQueryResolved()
+    {
+        if (selectedQuery == null) return;
+
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            var task = await context.ProjectTasks.FindAsync(selectedQuery.Id);
+            if (task != null)
+            {
+                task.Status = "Done"; // Mark as Resolved
+                await context.SaveChangesAsync();
+
+                await ShowSnackbar("Item marked as resolved.", "success");
+                isModalVisible = false;
+                await LoadDashboardDataAsync(); // Refresh list
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to resolve item");
+            await ShowSnackbar("Error updating item.", "error");
+        }
+    }
+
+    private async Task ShowSnackbar(string message, string type)
+    {
+        snackbarMessage = message;
+        snackbarType = type == "success" ? "snackbar-success" : "snackbar-error";
+        snackbarIcon = type == "success" ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill";
+        showSnackbar = true;
+        StateHasChanged();
+        await Task.Delay(3000);
+        showSnackbar = false;
+        StateHasChanged();
+    }
+
+    private string GetTimeAgo(DateTime date)
+    {
+        var span = DateTime.UtcNow - date;
+        if (span.TotalHours < 1) return $"{Math.Max(1, (int)span.TotalMinutes)} min ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours} hrs ago";
+        return $"{(int)span.TotalDays} days ago";
     }
 }

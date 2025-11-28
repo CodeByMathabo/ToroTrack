@@ -132,3 +132,42 @@
         background-color: var(--toro-hover);
         transform: translateY(-4px);
     }
+
+/* --- SNACKBAR NOTIFICATION --- */
+.toro-snackbar {
+    position: fixed;
+    bottom: 30px;
+    right: 30px; /* Or left: 50%, transform: translateX(-50%) for center */
+    min-width: 300px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 9999; /* Ensure it's on top of modals */
+    display: flex;
+    align-items: center;
+    animation: slideUpFade 0.4s ease-out;
+}
+
+.snackbar-success {
+    background-color: #283618; /* Dark Green */
+    border-left: 5px solid #606c38;
+}
+
+.snackbar-error {
+    background-color: #bc4749; /* Red */
+    border-left: 5px solid #6a040f;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
