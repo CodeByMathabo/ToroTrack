@@ -5,6 +5,7 @@
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@using System.Text.RegularExpressions
 @using ToroTrack.Components.Layout
 @using ToroTrack.Data
 @using ToroTrack.Data.Entities
@@ -62,11 +63,26 @@
         </div>
     </header>
 
+    @* --- SNACKBAR COMPONENT --- *@
+    @if (!string.IsNullOrEmpty(SuccessMessage))
+    {
+        <div class="toro-snackbar success">
+            <i class="bi bi-check-circle-fill snackbar-icon"></i>
+            <span class="snackbar-text">@SuccessMessage</span>
+            <button class="snackbar-close" @onclick='() => SuccessMessage = ""'>
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    }
+
     @if (!string.IsNullOrEmpty(ErrorMessage))
     {
-        <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i> @ErrorMessage
-            <button type="button" class="btn-close" @onclick='() => ErrorMessage = ""'></button>
+        <div class="toro-snackbar error">
+            <i class="bi bi-exclamation-triangle-fill snackbar-icon"></i>
+            <span class="snackbar-text">@ErrorMessage</span>
+            <button class="snackbar-close" @onclick='() => ErrorMessage = ""'>
+                <i class="bi bi-x-lg"></i>
+            </button>
         </div>
     }
 
@@ -326,6 +342,7 @@
     private string CurrentTeamFilter = "All";
     private int? SelectedProjectId = null;
     private string ErrorMessage = "";
+    private string SuccessMessage = "";
     private string CurrentUserJobRole = "Loading...";
     private string CurrentUserIdentityRole = "";
     private bool IsAdmin = false;
@@ -355,6 +372,39 @@
     {
         await LoadUserRoleAsync();
         await LoadDataAsync();
+    }
+
+    // Helper to Show and Auto-Dismiss Messages
+    private async Task ShowSuccess(string message)
+    {
+        SuccessMessage = message;
+        ErrorMessage = "";
+        await InvokeAsync(StateHasChanged);
+
+        _ = Task.Delay(5000).ContinueWith(async _ =>
+        {
+            if (SuccessMessage == message)
+            {
+                SuccessMessage = "";
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    private async Task ShowError(string message)
+    {
+        ErrorMessage = message;
+        SuccessMessage = "";
+        await InvokeAsync(StateHasChanged);
+
+        _ = Task.Delay(5000).ContinueWith(async _ =>
+        {
+            if (ErrorMessage == message)
+            {
+                ErrorMessage = "";
+                await InvokeAsync(StateHasChanged);
+            }
+        });
     }
 
     private async Task LoadUserRoleAsync()
@@ -413,7 +463,7 @@
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error loading data: {ex.Message}";
+            ShowError($"Error loading data: {ex.Message}");
             Logger.LogError(ex, "Failed to load Kanban data");
         }
     }
@@ -426,12 +476,12 @@
 
     private string GetProjectName(int? id) => Projects.FirstOrDefault(p => p.Id == id)?.Name ?? "Unknown";
 
-    // --- NEW TASK LOGIC ---
+    // --- TASK LOGIC ---
     private void OpenCreateModal()
     {
         if (SelectedProjectId == null)
         {
-            ErrorMessage = "Please select a Project from the dropdown first.";
+            ShowError("Please select a Project from the dropdown first.");
             return;
         }
 
@@ -535,15 +585,51 @@
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Database Error: {ex.Message}";
+            ShowError($"Database Error: {ex.Message}");
         }
+    }
+
+    // --- PIPELINED DEPENDENCY LOGIC ---
+    private bool CheckDependencies(ProjectTask task)
+    {
+        // Regex to find "Stage X" in title
+        var match = Regex.Match(task.Title, @"^Stage (\d+):");
+        if (match.Success)
+        {
+            if (int.TryParse(match.Groups[1].Value, out int currentStage) && currentStage > 1)
+            {
+                int prevStageNum = currentStage - 1;
+                // Find the task for the previous stage in the same project
+                var prevTask = Tasks.FirstOrDefault(t =>
+                    t.ProjectId == task.ProjectId &&
+                    t.Title.StartsWith($"Stage {prevStageNum}:"));
+
+                if (prevTask == null)
+                {
+                    ShowError($"Locked: 'Stage {prevStageNum}' must be created first.");
+                    return false;
+                }
+
+                // PROFESSIONAL FIX: NON-BLOCKING PIPELINE
+                // We check if the previous stage is DONE by the TEAM (PendingReview) OR Verified by Admin.
+                // We do NOT block if it's just "PendingReview".
+                bool isPrevTaskDoneByTeam = prevTask.Status == "PendingReview" || prevTask.Status == "Verified";
+
+                if (!isPrevTaskDoneByTeam)
+                {
+                    ShowError($"Locked: You must complete 'Stage {prevStageNum}' before finishing 'Stage {currentStage}'.");
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private async Task MoveTask(ProjectTask task, string newStatus)
     {
         if (!CanInteractWithTask(task))
         {
-            ErrorMessage = "You are not authorized to move this task.";
+            ShowError("You are not authorized to move this task.");
             return;
         }
 
@@ -560,13 +646,18 @@
         }
         catch (Exception ex)
         {
-            ErrorMessage = "Failed to move task.";
+            ShowError("Failed to move task.");
         }
     }
 
     private void InitiateCompleteTask(ProjectTask task)
     {
         if (!CanInteractWithTask(task)) return;
+
+        // ENFORCE DEPENDENCY CHECK WHEN COMPLETING (Doing -> Done)
+        // This ensures Stage 2 cannot be marked Done until Stage 1 is Done (PendingReview or Verified)
+        if (!CheckDependencies(task)) return;
+
         TaskToComplete = task;
         ProofUrlInput = "";
         isProofModalVisible = true;
@@ -595,7 +686,7 @@
         }
         catch (Exception ex)
         {
-            ErrorMessage = "Failed to submit proof.";
+            ShowError("Failed to submit proof.");
         }
     }
 
@@ -619,7 +710,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to open order review for project {ProjectId}", projectId);
-            ErrorMessage = "Could not load order details.";
+            ShowError("Could not load order details.");
         }
     }
 
@@ -651,26 +742,60 @@
                 CurrentUserJobRole, CurrentProjectOrder.Id, newStatus);
 
             using var context = DbFactory.CreateDbContext();
-            var order = await context.AssetOrders.FindAsync(CurrentProjectOrder.Id);
+
+            // Re-fetch order with items included to handle stock deduction
+            var order = await context.AssetOrders
+                .Include(o => o.Items)
+                .ThenInclude(i => i.CatalogItem)
+                .FirstOrDefaultAsync(o => o.Id == CurrentProjectOrder.Id);
 
             if (order != null)
             {
+                bool stockUpdated = false;
+
+                if (newStatus == "Confirmed")
+                {
+                    foreach (var item in order.Items)
+                    {
+                        if (item.CatalogItem != null && item.CatalogItem.Category == "Hardware")
+                        {
+                            item.CatalogItem.StockQuantity -= item.Quantity;
+                            if (item.CatalogItem.StockQuantity < 0)
+                            {
+                                item.CatalogItem.StockQuantity = 0;
+                            }
+
+                            context.Entry(item.CatalogItem).State = EntityState.Modified;
+                            stockUpdated = true;
+                        }
+                    }
+                }
+
                 order.Status = newStatus;
                 await context.SaveChangesAsync();
 
                 CurrentProjectOrder.Status = newStatus;
+
+                var msg = stockUpdated
+                    ? $"Order Confirmed! Stock inventory updated for {order.Items.Count} items."
+                    : $"Order status updated to {newStatus}.";
+
                 isOrderReviewVisible = false;
+                await InvokeAsync(StateHasChanged);
                 await LoadDataAsync();
+                await ShowSuccess(msg);
             }
             else
             {
-                ErrorMessage = "Order not found in database.";
+                ShowError("Order not found in database.");
+                await InvokeAsync(StateHasChanged);
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to update order status for Order {Id}", CurrentProjectOrder.Id);
-            ErrorMessage = "System error processing order.";
+            ShowError("System error processing order. Please check logs.");
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -691,14 +816,12 @@
 
             @* --- SMART ACTION BUTTONS --- *@
 
-            @* 1. Specific Button for Logistics Stage 2 (Client Order) *@
             @if (task.Title.Contains("Stage 2") && task.AssignedToId == "Logistics Coordinator")
             {
                 <button class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2" @onclick="() => OpenOrderReviewModal(task.ProjectId)" style="font-size: 0.75rem; border-style: dashed;">
                     <i class="bi bi-clipboard-check"></i> Review Client Order
                 </button>
             }
-            @* 2. General Smart Buttons for other tasks (Catalog, Verify, etc.) *@
             else if (!string.IsNullOrEmpty(GetActionLink(task.Title)))
             {
                 <a href="@GetActionLink(task.Title)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2" style="font-size: 0.75rem; border-style: dashed;">
@@ -743,9 +866,16 @@
     // --- SMART LINKING ---
     private string? GetActionLink(string title)
     {
-        if (title.Contains("Catalog", StringComparison.OrdinalIgnoreCase)) return "/admin/catalog";
+        // 1. Specific Workflow Links for Logistics Coordinator
+        if (title.Contains("Stage 1") || title.Contains("Catalog")) return "/admin/catalog"; // Catalog Verification
+        if (title.Contains("Stage 3") || title.Contains("Stock")) return "/admin/catalog";   // Stock Allocation
+        if (title.Contains("Stage 4") || title.Contains("Asset")) return "/admin/catalog";   // Asset Registration
+        if (title.Contains("Stage 5") || title.Contains("Dispatch")) return "/admin/verify"; // Final Dispatch/Verification
+
+        // 2. Fallback / General Keywords
         if (title.Contains("Order", StringComparison.OrdinalIgnoreCase) || title.Contains("Verify", StringComparison.OrdinalIgnoreCase)) return "/admin/verify";
         if (title.Contains("Asset", StringComparison.OrdinalIgnoreCase) && !title.Contains("Tag", StringComparison.OrdinalIgnoreCase)) return "/admin/catalog";
+
         return null;
     }
 

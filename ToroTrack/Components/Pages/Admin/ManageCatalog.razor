@@ -1,9 +1,16 @@
 ﻿@page "/admin/catalog"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
 @using ToroTrack.Components.Layout
 @using ToroTrack.Data
-@* attribute [Authorize(Roles = "Admin")] *@
+@using ToroTrack.Data.Entities
+
+@* Secure this page for Admins only *@
+@attribute [Authorize(Roles = "Admin, TeamMember")]
 @rendermode InteractiveServer
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject ILogger<ManageCatalog> Logger
 
 <PageTitle>Asset & Inventory | Toro Track</PageTitle>
 
@@ -20,7 +27,7 @@
         </div>
     </header>
 
-    @* INVENTORY FILTERS (NEW) *@
+    @* INVENTORY FILTERS *@
     <div class="filter-tabs mb-4">
         <button class="tab-btn @(ActiveFilter == "All" ? "active" : "")" @onclick='() => ActiveFilter = "All"'>
             All Products
@@ -35,94 +42,107 @@
 
     @* CATALOG TABLE *@
     <div class="table-container">
-        <table class="toro-table">
-            <thead>
-                <tr>
-                    <th style="width: 10%">Type</th>
-                    <th style="width: 25%">Product Name</th>
-                    <th style="width: 15%">Stock Level</th>
-                    <th style="width: 15%">Price</th>
-                    <th style="width: 15%">Status</th>
-                    <th style="width: 20%" class="text-center">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in FilteredItems)
-                {
-                    <tr>
-                        <td>
-                            <span class="badge-type @item.Type.ToLower()">@item.Type</span>
-                        </td>
-                        <td class="fw-bold">
-                            @item.Name
-                            @if (item.Type == "Software")
-                            {
-                                <div class="text-muted small mt-1 fw-normal" style="font-size: 0.7rem;">
-                                    <span class="bi bi-clock-history"></span> @item.LicenseDurationDays Days
-                                </div>
-                            }
-                        </td>
-                        
-                        @* STOCK MANAGEMENT COLUMN *@
-                        <td>
-                            @if (item.Type == "Hardware")
-                            {
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="fw-bold">@item.StockQuantity</span>
-                                    @if (item.StockQuantity == 0)
-                                    {
-                                        <span class="badge-stock out">Out of Stock</span>
-                                    }
-                                    else if (item.StockQuantity < 5)
-                                    {
-                                        <span class="badge-stock low">Low Stock</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge-stock good">In Stock</span>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <span class="text-muted small">(Digital)</span>
-                            }
-                        </td>
-
-                        <td>R @item.Price.ToString("N0")</td>
-                        
-                        <td>
-                            @if (item.StockQuantity > 0 || item.Type == "Software")
-                            {
-                                <span class="status-dot active"></span> <span class="small">Active</span>
-                            }
-                            else
-                            {
-                                <span class="status-dot inactive"></span> <span class="small text-muted">Unavailable</span>
-                            }
-                        </td>
-
-                        <td class="text-center">
-                            <div class="d-flex justify-content-center gap-2">
-                                <button class="btn-action-edit" @onclick="() => EditItem(item)">
-                                    Edit
-                                </button>
-                                <button class="btn-action-delete" @onclick="() => DeleteItem(item)">
-                                    Delete
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        
-        @if (!FilteredItems.Any())
+        @if (isLoading)
         {
-            <div class="text-center py-5 text-muted">
-                <span class="bi bi-box-seam display-4 d-block mb-3 opacity-50"></span>
-                <p>No items found in this category.</p>
-            </div>
+             <div class="p-5 text-center text-muted">
+                <div class="spinner-border text-primary mb-2" role="status"></div>
+                <p>Loading inventory...</p>
+             </div>
+        }
+        else
+        {
+            <table class="toro-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%">Category</th>
+                        <th style="width: 25%">Product Name</th>
+                        <th style="width: 15%">Stock Level</th>
+                        <th style="width: 15%">Cost</th>
+                        <th style="width: 15%">Status</th>
+                        <th style="width: 20%" class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in FilteredItems)
+                    {
+                        <tr>
+                            <td>
+                                @* Map Category to Badge Style *@
+                                <span class="badge-type @item.Category.ToLower()">@item.Category</span>
+                            </td>
+
+                            <td class="fw-bold">
+                                @item.Name
+                                @if (item.Category == "Software")
+                                {
+                                    <div class="text-muted small mt-1 fw-normal" style="font-size: 0.7rem;">
+                                        <span class="bi bi-info-circle"></span> Digital License
+                                    </div>
+                                }
+                            </td>
+                            
+                            @* STOCK MANAGEMENT COLUMN *@
+                            <td>
+                                @if (item.Category == "Hardware")
+                                {
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="fw-bold">@item.StockQuantity</span>
+                                        @if (item.StockQuantity == 0)
+                                        {
+                                            <span class="badge-stock out">Out of Stock</span>
+                                        }
+                                        else if (item.StockQuantity < 5)
+                                        {
+                                            <span class="badge-stock low">Low Stock</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge-stock good">In Stock</span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">(Unlimited)</span>
+                                }
+                            </td>
+
+                            @* Display Cost formatted as Currency *@
+                            <td>R @item.Cost.ToString("N0")</td>
+                            
+                            <td>
+                                @if (item.StockQuantity > 0 || item.Category == "Software")
+                                {
+                                    <span class="status-dot active"></span> <span class="small">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="status-dot inactive"></span> <span class="small text-muted">Unavailable</span>
+                                }
+                            </td>
+
+                            <td class="text-center">
+                                <div class="d-flex justify-content-center gap-2">
+                                    <button class="btn-action-edit" @onclick="() => EditItem(item)">
+                                        Edit
+                                    </button>
+                                    <button class="btn-action-delete" @onclick="() => DeleteItem(item)">
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            
+            @if (!FilteredItems.Any())
+            {
+                <div class="text-center py-5 text-muted">
+                    <span class="bi bi-box-seam display-4 d-block mb-3 opacity-50"></span>
+                    <p>No items found in this category.</p>
+                </div>
+            }
         }
     </div>
 </div>
@@ -132,9 +152,15 @@
     <EditForm Model="CurrentItem" OnValidSubmit="SaveItem">
         <DataAnnotationsValidator />
         
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger small mb-3">@ErrorMessage</div>
+        }
+
         <div class="form-group mb-3">
-            <label class="small-label">Item Type</label>
-            <InputSelect @bind-Value="CurrentItem.Type" class="form-select toro-input">
+            <label class="small-label">Category</label>
+            @* Bind to 'Category' property from Entity *@
+            <InputSelect @bind-Value="CurrentItem.Category" class="form-select toro-input">
                 <option value="Hardware">Hardware</option>
                 <option value="Software">Software</option>
             </InputSelect>
@@ -146,7 +172,7 @@
             <ValidationMessage For="@(() => CurrentItem.Name)" class="text-danger" />
         </div>
 
-        @if (CurrentItem.Type == "Hardware")
+        @if (CurrentItem.Category == "Hardware")
         {
             <div class="form-group mb-3 animate-fade-in">
                 <label class="small-label">Stock Quantity</label>
@@ -156,18 +182,12 @@
                 </small>
             </div>
         }
-        else if (CurrentItem.Type == "Software")
-        {
-            <div class="form-group mb-3 animate-fade-in">
-                <label class="small-label">License Duration (Days)</label>
-                <InputNumber @bind-Value="CurrentItem.LicenseDurationDays" class="form-control toro-input" placeholder="e.g. 365" />
-            </div>
-        }
-
+        
         <div class="form-group mb-3">
-            <label class="small-label">Price (ZAR)</label>
-            <InputNumber @bind-Value="CurrentItem.Price" class="form-control toro-input" />
-            <ValidationMessage For="@(() => CurrentItem.Price)" class="text-danger" />
+            <label class="small-label">Cost (ZAR)</label>
+            @* Bind to 'Cost' property from Entity *@
+            <InputNumber @bind-Value="CurrentItem.Cost" class="form-control toro-input" />
+            <ValidationMessage For="@(() => CurrentItem.Cost)" class="text-danger" />
         </div>
 
         <div class="form-group mb-4">
@@ -177,97 +197,154 @@
 
         <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn-secondary-toro" @onclick="() => isModalVisible = false">Cancel</button>
-            <button type="submit" class="btn-primary-toro">Save Product</button>
+            <button type="submit" class="btn-primary-toro" disabled="@isSaving">
+                @if (isSaving) 
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span> <span>Saving...</span>
+                }
+                else 
+                {
+                   <span>Save Product</span> 
+                }
+            </button>
         </div>
     </EditForm>
 </ToroModal>
 
 @code {
     private bool isModalVisible = false;
+    private bool isLoading = true;
+    private bool isSaving = false;
     private string modalTitle = "Add Catalog Item";
-    private string ActiveFilter = "All"; // Default Filter
-    
-    public class UiAssetCatalogItem
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public string Type { get; set; } = "Hardware"; 
-        public decimal Price { get; set; }
-        public string Description { get; set; } = "";
-        public int LicenseDurationDays { get; set; } = 0; 
-        public int StockQuantity { get; set; } = 0; 
-    }
+    private string ActiveFilter = "All";
+    private string ErrorMessage = "";
 
-    private UiAssetCatalogItem CurrentItem = new();
-    private List<UiAssetCatalogItem> CatalogItems = new();
+    // Use the actual Entity class instead of the UI helper class
+    private CatalogItem CurrentItem = new();
+    private List<CatalogItem> CatalogItems = new();
 
-    // Dynamic Filtering Logic
-    private IEnumerable<UiAssetCatalogItem> FilteredItems => ActiveFilter switch
+    // Filtering logic based on real Entity properties (Category/StockQuantity)
+    private IEnumerable<CatalogItem> FilteredItems => ActiveFilter switch
     {
-        "LowStock" => CatalogItems.Where(i => i.Type == "Hardware" && i.StockQuantity < 5 && i.StockQuantity > 0),
-        "OutOfStock" => CatalogItems.Where(i => i.Type == "Hardware" && i.StockQuantity == 0),
+        "LowStock" => CatalogItems.Where(i => i.Category == "Hardware" && i.StockQuantity < 5 && i.StockQuantity > 0),
+        "OutOfStock" => CatalogItems.Where(i => i.Category == "Hardware" && i.StockQuantity == 0),
         _ => CatalogItems
     };
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        CatalogItems = new List<UiAssetCatalogItem>
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
         {
-            new UiAssetCatalogItem { Id = 2, Name = "Dell Latitude 5420", Type = "Hardware", Price = 24000, Description = "Standard business laptop.", StockQuantity = 45 },
-            new UiAssetCatalogItem { Id = 3, Name = "27\" 4K Monitor", Type = "Hardware", Price = 6500, Description = "High-res display.", StockQuantity = 3 }, // Low Stock
-            new UiAssetCatalogItem { Id = 5, Name = "Logitech MX Keys", Type = "Hardware", Price = 2200, Description = "Wireless keyboard.", StockQuantity = 0 }, // Out of Stock
-            new UiAssetCatalogItem { Id = 1, Name = "Microsoft 365 E5", Type = "Software", Price = 650, Description = "Productivity suite.", LicenseDurationDays = 365 },
-        };
+            isLoading = true;
+            using var context = DbFactory.CreateDbContext();
+            // Fetch real data from DB, ordered by Name
+            CatalogItems = await context.CatalogItems
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load catalog items.");
+            ErrorMessage = "Could not load inventory data.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private void OpenAddModal()
     {
-        CurrentItem = new UiAssetCatalogItem { Type = "Hardware" };
+        // Reset to new instance for creation
+        CurrentItem = new CatalogItem { Category = "Hardware", StockQuantity = 1 };
         modalTitle = "Add New Product";
+        ErrorMessage = "";
         isModalVisible = true;
     }
 
-    private void EditItem(UiAssetCatalogItem item)
+    private void EditItem(CatalogItem item)
     {
-        CurrentItem = new UiAssetCatalogItem 
+        // Clone item to avoid modifying the list directly before save
+        CurrentItem = new CatalogItem 
         { 
             Id = item.Id, 
             Name = item.Name, 
-            Type = item.Type, 
-            Price = item.Price, 
+            Category = item.Category, 
+            Cost = item.Cost, 
             Description = item.Description,
-            LicenseDurationDays = item.LicenseDurationDays,
             StockQuantity = item.StockQuantity
         };
         modalTitle = "Edit Product";
+        ErrorMessage = "";
         isModalVisible = true;
     }
 
-    private void SaveItem()
+    private async Task SaveItem()
     {
-        if (CurrentItem.Id == 0)
+        isSaving = true;
+        ErrorMessage = "";
+        
+        try
         {
-            CurrentItem.Id = CatalogItems.Max(c => c.Id) + 1;
-            CatalogItems.Add(CurrentItem);
-        }
-        else
-        {
-            var existing = CatalogItems.FirstOrDefault(c => c.Id == CurrentItem.Id);
-            if (existing != null)
+            using var context = DbFactory.CreateDbContext();
+
+            if (CurrentItem.Id == 0)
             {
-                existing.Name = CurrentItem.Name;
-                existing.Type = CurrentItem.Type;
-                existing.Price = CurrentItem.Price;
-                existing.Description = CurrentItem.Description;
-                existing.LicenseDurationDays = CurrentItem.LicenseDurationDays;
-                existing.StockQuantity = CurrentItem.StockQuantity;
+                // Create New
+                context.CatalogItems.Add(CurrentItem);
             }
+            else
+            {
+                // Update Existing
+                var existing = await context.CatalogItems.FindAsync(CurrentItem.Id);
+                if (existing != null)
+                {
+                    existing.Name = CurrentItem.Name;
+                    existing.Category = CurrentItem.Category;
+                    existing.Cost = CurrentItem.Cost;
+                    existing.Description = CurrentItem.Description;
+                    existing.StockQuantity = CurrentItem.StockQuantity;
+                }
+            }
+
+            await context.SaveChangesAsync();
+            await LoadDataAsync(); // Refresh list
+            isModalVisible = false;
         }
-        isModalVisible = false;
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving catalog item {Name}", CurrentItem.Name);
+            ErrorMessage = "Failed to save product. Please try again.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
-    private void DeleteItem(UiAssetCatalogItem item)
+    private async Task DeleteItem(CatalogItem item)
     {
-        CatalogItems.Remove(item);
+        // Simple confirmation could be added here
+        try
+        {
+            using var context = DbFactory.CreateDbContext();
+            var existing = await context.CatalogItems.FindAsync(item.Id);
+            if (existing != null)
+            {
+                context.CatalogItems.Remove(existing);
+                await context.SaveChangesAsync();
+                await LoadDataAsync(); // Refresh UI
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting catalog item {Id}", item.Id);
+            // Optionally set an error message on the main page
+        }
     }
 }

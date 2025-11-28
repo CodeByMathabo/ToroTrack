@@ -184,3 +184,55 @@
 .border {
     border: 1px solid #ccc;
 }
+
+/* --- SNACKBAR STYLES (Moved from Razor file) --- */
+.toro-snackbar {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    min-width: 350px;
+    animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+    .toro-snackbar.success {
+        background-color: #283618;
+        border-left: 6px solid #606c38;
+    }
+
+    .toro-snackbar.error {
+        background-color: #9b2226;
+        border-left: 6px solid #ae2012;
+    }
+
+.snackbar-close {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+}
+
+    .snackbar-close:hover {
+        color: #fff;
+    }
+
+@keyframes slideUp {
+    from {
+        bottom: -100px;
+        opacity: 0;
+    }
+
+    to {
+        bottom: 30px;
+        opacity: 1;
+    }
+}
