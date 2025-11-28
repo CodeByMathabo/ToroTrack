@@ -92,7 +92,7 @@ namespace ToroTrack.Business.Services
 
                 // Persist Invite Record (For Admin Dashboard tracking)
                 inviteModel.DateInvited = DateTime.UtcNow;
-                inviteModel.InviteToken = Guid.NewGuid().ToString(); // Optional: Keep for auditing
+                inviteModel.InviteToken = Guid.NewGuid().ToString();
                 await _repository.AddInviteAsync(inviteModel);
 
                 // Send Email
@@ -109,8 +109,6 @@ namespace ToroTrack.Business.Services
 
         public async Task RevokeInviteAsync(int inviteId)
         {
-            // Note: In a full system, you might also want to Delete the IdentityUser here
-            // if they haven't logged in yet. For now, we just remove the tracking record.
             _logger.LogInformation("Revoking invite ID: {Id}", inviteId);
             await _repository.DeleteInviteAsync(inviteId);
         }
@@ -129,7 +127,6 @@ namespace ToroTrack.Business.Services
         }
 
         // --- Helper Methods ---
-
         private async Task SendWelcomeEmail(string email, string role, string password)
         {
             var subject = "Welcome to Toro Track";
@@ -142,7 +139,6 @@ namespace ToroTrack.Business.Services
                         <p><strong>Username:</strong> {email}</p>
                         <p><strong>Password:</strong> {password}</p>
                     </div>
-                    <p>Access the system here to login <a href='http://localhost:5274/'></a>.</p>
                 </div>";
 
             await _emailSender.SendEmailAsync(email, subject, htmlMessage);

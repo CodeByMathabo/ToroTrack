@@ -62,10 +62,19 @@ namespace ToroTrack.Data.Entities
     public class ClientAsset
     {
         public int Id { get; set; }
-        public int CatalogItemId { get; set; }
+
+        // Made nullable because a custom project delivery might not match a catalog item
+        public int? CatalogItemId { get; set; }
+
         public string ClientId { get; set; } = "";
         public string? SerialNumber { get; set; }
         public DateTime AssignedDate { get; set; } = DateTime.UtcNow;
+
+        // Added these fields to support the "Delivered Assets" feature
+        public string Name { get; set; } = "Unnamed Asset";
+        public string Description { get; set; } = "";
+        public string Status { get; set; } = "Active";
+        public string? ImageUrl { get; set; }
     }
 
     public class AuditLog

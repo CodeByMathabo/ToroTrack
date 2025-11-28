@@ -35,4 +35,22 @@ namespace ToroTrack.Models
         public int ProgressPercent { get; set; }
         public bool IsActive { get; set; }
     }
+    public class ClientProjectViewModel
+    {
+        public int Id { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
+        public string ClientName { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime DueDate { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class ClientStageViewModel
+    {
+        public int Id { get; set; }
+        public string StageName { get; set; } = string.Empty;
+        public string AssignedTeam { get; set; } = string.Empty;
+        public string Status { get; set; } = "Pending";
+        public int ProgressPercent { get; set; }
+    }
 }

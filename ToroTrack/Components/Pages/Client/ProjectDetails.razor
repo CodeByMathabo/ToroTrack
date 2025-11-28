@@ -1,7 +1,13 @@
 @page "/client/project-details"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using ToroTrack.Components.Layout
-@*attribute [Authorize(Roles = "Client")]*@
+@using ToroTrack.Business.Services
+@using ToroTrack.Models
+@inject IProjectService ProjectService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@attribute [Authorize(Roles = "Client")]
 @rendermode InteractiveServer
 
 <PageTitle>My Projects | Toro Track</PageTitle>
@@ -13,6 +19,14 @@
         <div class="loading-state">
             <div class="spinner-border text-success" role="status"></div>
             <p class="mt-3 text-muted">Loading your projects...</p>
+        </div>
+    }
+    else if (MyProjects.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="alert alert-info">
+                <span class="bi bi-info-circle me-2"></span> No projects have been assigned to your account yet.
+            </div>
         </div>
     }
     else
@@ -59,59 +73,66 @@
             </div>
         </header>
 
-        @* MAIN DASHBOARD GRID (Unchanged) *@
+        @* MAIN DASHBOARD GRID *@
         <div class="dashboard-grid">
 
             @* LEFT: CURRENT STATUS *@
             <section class="status-card">
                 <div class="card-label">Current Stage</div>
-                <h2 class="stage-title">@CurrentStage?.StageName</h2>
+                @if (CurrentStage != null)
+                {
+                    <h2 class="stage-title">@CurrentStage.StageName</h2>
 
-                <div class="team-display">
-                    <span class="bi bi-people-fill icon"></span>
-                    <div>
-                        <div class="label">Assigned Team</div>
-                        <div class="value">@CurrentStage?.AssignedTeam</div>
-                    </div>
-                </div>
-
-                <div class="progress-section">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="small-label">Stage Completion</span>
-                        <span class="small-label fw-bold">@CurrentStage?.ProgressPercent%</span>
-                    </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-fill" style="width: @(CurrentStage?.ProgressPercent)%"></div>
-                    </div>
-                </div>
-
-                <div class="action-area">
-                    @if (CurrentStage?.Status == "Pending Sign-off")
-                    {
-                        <div class="alert-box">
-                            <span class="bi bi-exclamation-circle-fill"></span>
-                            <span>This stage is complete. Please review and sign off to proceed to the next phase.</span>
+                    <div class="team-display">
+                        <span class="bi bi-people-fill icon"></span>
+                        <div>
+                            <div class="label">Assigned Team</div>
+                            <div class="value">@CurrentStage.AssignedTeam</div>
                         </div>
-                        <button class="btn-sign-off" @onclick="OpenSignOffModal">
-                            <span class="bi bi-pen-fill me-2"></span> Sign Off Milestone
-                        </button>
-                    }
-                    else if (CurrentStage?.Status == "Completed")
-                    {
-                        <div class="alert alert-success border-0">
-                            <span class="bi bi-check-circle-fill me-2"></span> All stages completed.
+                    </div>
+
+                    <div class="progress-section">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small-label">Stage Completion</span>
+                            <span class="small-label fw-bold">@CurrentStage.ProgressPercent%</span>
                         </div>
-                    }
-                    else
-                    {
-                        <button class="btn-sign-off disabled" disabled>
-                            <span class="bi bi-lock-fill me-2"></span> Awaiting Completion
-                        </button>
-                        <p class="text-center mt-2 text-muted" style="font-size: 0.8rem;">
-                            You can sign off once the team marks all tasks as done.
-                        </p>
-                    }
-                </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-fill" style="width: @(CurrentStage.ProgressPercent)%"></div>
+                        </div>
+                    </div>
+
+                    <div class="action-area">
+                        @if (CurrentStage.Status == "Pending Sign-off")
+                        {
+                            <div class="alert-box">
+                                <span class="bi bi-exclamation-circle-fill"></span>
+                                <span>This stage is complete. Please review and sign off to proceed to the next phase.</span>
+                            </div>
+                            <button class="btn-sign-off" @onclick="OpenSignOffModal">
+                                <span class="bi bi-pen-fill me-2"></span> Sign Off Milestone
+                            </button>
+                        }
+                        else if (CurrentStage.Status == "Completed")
+                        {
+                            <div class="alert alert-success border-0">
+                                <span class="bi bi-check-circle-fill me-2"></span> Stage successfully verified.
+                            </div>
+                        }
+                        else
+                        {
+                            <button class="btn-sign-off disabled" disabled>
+                                <span class="bi bi-lock-fill me-2"></span> Awaiting Completion
+                            </button>
+                            <p class="text-center mt-2 text-muted" style="font-size: 0.8rem;">
+                                You can sign off once the team marks this stage as done.
+                            </p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted p-4">All stages completed or no active stages found.</p>
+                }
             </section>
 
             @* RIGHT: TIMELINE *@
@@ -147,7 +168,7 @@
     }
 </div>
 
-@* SIGN OFF CONFIRMATION MODAL (Unchanged) *@
+@* SIGN OFF CONFIRMATION MODAL *@
 <ToroModal @bind-IsVisible="isSignOffVisible" Title="Confirm Milestone Sign-Off">
     <div class="p-2">
         <p class="mb-4 text-muted">
@@ -160,52 +181,150 @@
             <input @bind="SignerName" class="form-control" placeholder="Type your full name to sign..." />
         </div>
 
+        @if (!string.IsNullOrEmpty(SignOffError))
+        {
+            <div class="text-danger mb-3 small">@SignOffError</div>
+        }
+
         <div class="d-flex justify-content-end gap-2 mt-4">
             <button class="btn-cancel-modal" @onclick="() => isSignOffVisible = false">Cancel</button>
-            <button class="btn-confirm-modal" @onclick="ProcessSignOff" disabled="@string.IsNullOrWhiteSpace(SignerName)">
-                <span class="bi bi-pen-fill me-2"></span> Confirm & Sign
+            <button class="btn-confirm-modal" @onclick="ProcessSignOff" disabled="@(isProcessing || string.IsNullOrWhiteSpace(SignerName))">
+                @if (isProcessing)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                else
+                {
+                    <span class="bi bi-pen-fill me-2"></span>
+                }
+                Confirm & Sign
             </button>
         </div>
     </div>
 </ToroModal>
 
 @code {
-    // ... [ALL C# Logic Remains Identical to Previous Version] ...
-    // (Omitting repetition for brevity, assume Models, State, and Methods are here)
-    public class ClientProject { public int Id { get; set; } public string ProjectName { get; set; } = ""; public string ClientName { get; set; } = ""; public DateTime StartDate { get; set; } public DateTime DueDate { get; set; } public bool IsActive { get; set; } }
-    public class ClientStage { public int Id { get; set; } public string StageName { get; set; } = ""; public string AssignedTeam { get; set; } = ""; public string Status { get; set; } = ""; public int ProgressPercent { get; set; } }
-
     private bool isLoading = true;
-    private List<ClientProject> MyProjects = new();
-    private ClientProject? SelectedProject;
-    private List<ClientStage> ProjectStages = new();
-    private ClientStage? CurrentStage;
+    private bool isProcessing = false;
+    private List<ClientProjectViewModel> MyProjects = new();
+    private ClientProjectViewModel? SelectedProject;
+    private List<ClientStageViewModel> ProjectStages = new();
+    private ClientStageViewModel? CurrentStage;
     private string NextStageName = "Next Stage";
     private bool isSignOffVisible = false;
     private string SignerName = "";
+    private string SignOffError = "";
 
     protected override async Task OnInitializedAsync()
     {
-        await Task.Delay(500);
-        MyProjects = new List<ClientProject>
+        try
         {
-            new ClientProject { Id = 101, ProjectName = "Cloud Infrastructure Migration", ClientName = "Law Firm Z", StartDate = DateTime.Now.AddDays(-45), DueDate = DateTime.Now.AddDays(60), IsActive = true },
-            new ClientProject { Id = 102, ProjectName = "Cybersecurity Audit 2024", ClientName = "Law Firm Z", StartDate = DateTime.Now.AddDays(-200), DueDate = DateTime.Now.AddDays(-10), IsActive = false }
-        };
-        SelectedProject = MyProjects.FirstOrDefault(p => p.IsActive) ?? MyProjects.FirstOrDefault();
-        if (SelectedProject != null) LoadStagesForProject(SelectedProject.Id);
-        isLoading = false;
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+            {
+                // Why: Get the logged-in User ID from claims
+                var userId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    // Fetch real projects from DB
+                    MyProjects = await ProjectService.GetProjectsForClientAsync(userId);
+
+                    // Select the first active project by default
+                    SelectedProject = MyProjects.FirstOrDefault(p => p.IsActive) ?? MyProjects.FirstOrDefault();
+
+                    if (SelectedProject != null)
+                    {
+                        await LoadStagesForProject(SelectedProject.Id);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading projects: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
-    private void OnProjectChanged(ChangeEventArgs e) { if (int.TryParse(e.Value?.ToString(), out int projectId)) { SelectedProject = MyProjects.FirstOrDefault(p => p.Id == projectId); LoadStagesForProject(projectId); } }
-    private void LoadStagesForProject(int projectId)
+
+    private async Task OnProjectChanged(ChangeEventArgs e)
     {
-        if (projectId == 101) { ProjectStages = new List<ClientStage> { new ClientStage { Id = 1, StageName = "Procurement & Deployment", AssignedTeam = "Infrastructure Team", Status = "Completed", ProgressPercent = 100 }, new ClientStage { Id = 2, StageName = "Network Hardening", AssignedTeam = "Network & Security Team", Status = "Pending Sign-off", ProgressPercent = 100 }, new ClientStage { Id = 3, StageName = "Cloud Transition", AssignedTeam = "Cloud Migration Team", Status = "Pending", ProgressPercent = 0 }, new ClientStage { Id = 4, StageName = "Workflow Implementation", AssignedTeam = "Modern Workplace Team", Status = "Pending", ProgressPercent = 0 }, new ClientStage { Id = 5, StageName = "Education & Handover", AssignedTeam = "Training & Support Team", Status = "Pending", ProgressPercent = 0 } }; }
-        else { ProjectStages = new List<ClientStage> { new ClientStage { Id = 11, StageName = "Security Audit", AssignedTeam = "Auditor Team", Status = "Completed", ProgressPercent = 100 }, new ClientStage { Id = 12, StageName = "Report Generation", AssignedTeam = "Auditor Team", Status = "Completed", ProgressPercent = 100 }, new ClientStage { Id = 13, StageName = "Closing Meeting", AssignedTeam = "Client Lead", Status = "Completed", ProgressPercent = 100 } }; }
-        CurrentStage = ProjectStages.FirstOrDefault(s => s.Status != "Completed") ?? ProjectStages.Last();
-        var currentIndex = ProjectStages.IndexOf(CurrentStage);
-        if (currentIndex + 1 < ProjectStages.Count) NextStageName = ProjectStages[currentIndex + 1].StageName; else NextStageName = "Project Completion";
+        if (int.TryParse(e.Value?.ToString(), out int projectId))
+        {
+            SelectedProject = MyProjects.FirstOrDefault(p => p.Id == projectId);
+            if (SelectedProject != null)
+            {
+                await LoadStagesForProject(projectId);
+            }
+        }
     }
-    private void OpenSignOffModal() { SignerName = ""; isSignOffVisible = true; }
-    private async Task ProcessSignOff() { await Task.Delay(1000); if (CurrentStage != null) { CurrentStage.Status = "Completed"; var nextIndex = ProjectStages.IndexOf(CurrentStage) + 1; if (nextIndex < ProjectStages.Count) { ProjectStages[nextIndex].Status = "Active"; ProjectStages[nextIndex].ProgressPercent = 0; CurrentStage = ProjectStages[nextIndex]; } else { if (SelectedProject != null) SelectedProject.IsActive = false; } } isSignOffVisible = false; }
-    private string GetStageClass(ClientStage stage) { return stage.Status.ToLower().Replace(" ", "-"); }
+
+    private async Task LoadStagesForProject(int projectId)
+    {
+        // Fetch real stages (tasks) from DB
+        ProjectStages = await ProjectService.GetProjectStagesAsync(projectId);
+
+        // Determine current active stage
+        // Why: Find the first stage that isn't fully completed, or the last one if all are done
+        CurrentStage = ProjectStages.FirstOrDefault(s => s.Status != "Completed") ?? ProjectStages.LastOrDefault();
+
+        if (CurrentStage != null)
+        {
+            var currentIndex = ProjectStages.IndexOf(CurrentStage);
+            if (currentIndex + 1 < ProjectStages.Count)
+            {
+                NextStageName = ProjectStages[currentIndex + 1].StageName;
+            }
+            else
+            {
+                NextStageName = "Project Completion";
+            }
+        }
+    }
+
+    private void OpenSignOffModal()
+    {
+        SignerName = "";
+        SignOffError = "";
+        isSignOffVisible = true;
+    }
+
+    private async Task ProcessSignOff()
+    {
+        if (CurrentStage == null) return;
+
+        isProcessing = true;
+        try
+        {
+            // Why: Send sign-off to backend to update DB status
+            await ProjectService.SignOffStageAsync(CurrentStage.Id, SignerName);
+
+            // Refresh UI
+            if (SelectedProject != null)
+            {
+                await LoadStagesForProject(SelectedProject.Id);
+            }
+
+            isSignOffVisible = false;
+        }
+        catch (Exception ex)
+        {
+            SignOffError = "Failed to sign off. Please try again.";
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private string GetStageClass(ClientStageViewModel stage)
+    {
+        return stage.Status.ToLower().Replace(" ", "-");
+    }
 }

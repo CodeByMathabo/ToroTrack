@@ -16,7 +16,6 @@
 <PageTitle>Overview | Toro Track</PageTitle>
 
 <div class="page-shell">
-
     <header class="content-header">
         <div>
             <h1 class="page-title">Dashboard Overview</h1>
@@ -34,6 +33,7 @@
             <span class="stat-title">Active Projects</span>
             <span class="stat-number">@Stats.ActiveProjects</span>
         </div>
+        @* Why: This card now reflects real entries from the ClientAssets table *@
         <div class="stat-card">
             <span class="stat-title">Delivered Assets</span>
             <span class="stat-number">@Stats.DeliveredAssets</span>
@@ -95,7 +95,6 @@
             Internal Users
         </button>
     </div>
-
 </div>
 
 @* --- SNACKBAR NOTIFICATION --- *@
@@ -124,6 +123,7 @@
             </button>
         </div>
     }
+    @* Kept other modal contents (Licenses, Meetings, Users) as per original layout *@
     else if (currentModal == ModalType.Licenses)
     {
         <table class="toro-table">
@@ -139,11 +139,6 @@
                     <td><strong>Toro Info</strong></td>
                     <td>Azure AD Premium P1</td>
                     <td class="text-danger text-center">Oct 30, 2025</td>
-                </tr>
-                <tr>
-                    <td><strong>Logistics Co</strong></td>
-                    <td>SQL Server Enterprise</td>
-                    <td class="text-center">Nov 12, 2025</td>
                 </tr>
             </tbody>
         </table>
@@ -245,7 +240,6 @@
     private ModalType currentModal;
     private ClientQuery? selectedQuery;
 
-    // Snackbar State
     private bool showSnackbar = false;
     private string snackbarMessage = "";
     private string snackbarType = "success";
@@ -255,14 +249,23 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Logger.LogInformation("Initializing Dashboard...");
         try
         {
             IsLoading = true;
-            await LoadDashboardDataAsync();
+            using var context = DbFactory.CreateDbContext();
+
+            // Why: Break down logic into small, readable methods [cite: 9]
+            await LoadStatsAsync(context);
+            await LoadPendingQueriesAsync(context);
+            await LoadUpcomingMeetingsAsync(context);
+            await LoadInternalUsersAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to load dashboard data");
+            // Why: Catch failures early to prevent page crash [cite: 13]
+            Logger.LogError(ex, "Critical failure loading dashboard data");
+            await ShowSnackbar("Failed to load dashboard data", "error");
         }
         finally
         {
@@ -270,15 +273,33 @@
         }
     }
 
-    private async Task LoadDashboardDataAsync()
+    private async Task LoadStatsAsync(ApplicationDbContext context)
     {
-        using var context = DbFactory.CreateDbContext();
+        try
+        {
+            // Why: Get active clients using UserManager
+            var clients = await UserManager.GetUsersInRoleAsync("Client");
+            Stats.TotalClients = clients.Count;
 
-        var clients = await UserManager.GetUsersInRoleAsync("Client");
-        Stats.TotalClients = clients.Count;
-        Stats.ActiveProjects = await context.Projects.CountAsync(p => p.Status == "Active");
-        Stats.DeliveredAssets = await context.ClientAssets.CountAsync();
+            // Why: Efficiently count projects without loading entities
+            Stats.ActiveProjects = await context.Projects.CountAsync(p => p.Status == "Active");
 
+            // Why: Ensure this reflects real data from the SignOff process
+            Stats.DeliveredAssets = await context.ClientAssets.CountAsync();
+
+            Logger.LogInformation($"Stats Loaded - Clients: {Stats.TotalClients}, Projects: {Stats.ActiveProjects}, Assets: {Stats.DeliveredAssets}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading stats");
+            // Why: Reset to 0 on error so UI looks clean
+            Stats = new DashboardStats();
+        }
+    }
+
+    private async Task LoadPendingQueriesAsync(ApplicationDbContext context)
+    {
+        // Why: Fetch tasks needing review. Assuming 'PendingReview' or 'Done' waiting for admin checks.
         var pendingTasks = await context.ProjectTasks
             .Include(t => t.Project)
                 .ThenInclude(p => p.Client)
@@ -286,6 +307,8 @@
             .OrderByDescending(t => t.CompletedDate)
             .Take(10)
             .ToListAsync();
+
+        Logger.LogInformation($"Found {pendingTasks.Count} pending tasks.");
 
         PendingQueries = pendingTasks.Select(t => new ClientQuery
         {
@@ -299,18 +322,10 @@
                 ? GetTimeAgo(t.CompletedDate.Value)
                 : "Recently"
         }).ToList();
+    }
 
-        var allUsers = await UserManager.Users.ToListAsync();
-        var clientIds = clients.Select(c => c.Id).ToHashSet();
-        InternalUsers = allUsers
-            .Where(u => !clientIds.Contains(u.Id))
-            .Select(u => new InternalUserViewModel
-            {
-                UserName = $"{u.FirstName} {u.LastName}",
-                Email = u.Email ?? ""
-            })
-            .ToList();
-
+    private async Task LoadUpcomingMeetingsAsync(ApplicationDbContext context)
+    {
         var realMeetings = await context.Meetings
             .Include(m => m.Client)
             .Where(m => m.Date >= DateTime.UtcNow.AddDays(-1))
@@ -325,6 +340,26 @@
             Description = m.Description
         }).ToList();
     }
+
+    private async Task LoadInternalUsersAsync()
+    {
+        // Why: Separate user fetching logic to keep main flow clean
+        var clients = await UserManager.GetUsersInRoleAsync("Client");
+        var allUsers = await UserManager.Users.ToListAsync();
+
+        var clientIds = clients.Select(c => c.Id).ToHashSet();
+
+        InternalUsers = allUsers
+            .Where(u => !clientIds.Contains(u.Id))
+            .Select(u => new InternalUserViewModel
+            {
+                UserName = $"{u.FirstName} {u.LastName}",
+                Email = u.Email ?? ""
+            })
+            .ToList();
+    }
+
+    // --- UI HELPERS ---
 
     private void ShowModal(ModalType type)
     {
@@ -342,8 +377,6 @@
         isModalVisible = true;
     }
 
-    // --- ACTIONS ---
-
     private async Task MarkQueryResolved()
     {
         if (selectedQuery == null) return;
@@ -352,14 +385,18 @@
         {
             using var context = DbFactory.CreateDbContext();
             var task = await context.ProjectTasks.FindAsync(selectedQuery.Id);
+
             if (task != null)
             {
-                task.Status = "Done"; // Mark as Resolved
+                task.Status = "Done";
                 await context.SaveChangesAsync();
+                Logger.LogInformation($"Task {task.Id} marked resolved by admin.");
 
                 await ShowSnackbar("Item marked as resolved.", "success");
                 isModalVisible = false;
-                await LoadDashboardDataAsync(); // Refresh list
+
+                // Why: Refresh data to remove the resolved item from list
+                await OnInitializedAsync();
             }
         }
         catch (Exception ex)
