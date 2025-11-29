@@ -37,8 +37,11 @@
                 @* LOGOUT BUTTON - Redirects to Welcome Page *@
                 <form action="/Account/Logout" method="post" data-enhance="false">
                     <AntiforgeryToken />
+                    @* Why: ReturnUrl is set to "/" to ensure redirect goes to the Welcome page *@
                     <input type="hidden" name="ReturnUrl" value="/" />
-                    <button type="submit" class="logout-btn">
+
+                    @* Why: onclick handles the immediate visual feedback 'Logging Out...' before the form posts *@
+                    <button type="submit" class="logout-btn" onclick="this.innerText = 'Logging Out...';">
                         LOGOUT
                     </button>
                 </form>
