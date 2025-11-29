@@ -31,6 +31,11 @@
                 <span class="bi bi-grid-3x3-gap"></span>
                 <span class="link-text">Catalog</span>
             </NavLink>
+
+            <NavLink class="toro-nav-link" href="admin/settings">
+                <span class="bi bi-gear-fill"></span>
+                <span class="link-text">Settings</span>
+            </NavLink>
         </Authorized>
     </AuthorizeView>
 
@@ -54,7 +59,6 @@
                 <span class="link-text">Audit Trail</span>
             </NavLink>
 
-            @* Why: Added navigation to the License Registry *@
             <NavLink class="toro-nav-link" href="auditor/license">
                 <span class="bi bi-key"></span>
                 <span class="link-text">Licenses</span>
@@ -72,7 +76,6 @@
                 <span class="link-text">My Tasks</span>
             </NavLink>
 
-            @* Why: Added access to the new notification center for audit alerts *@
             <NavLink class="toro-nav-link" href="team/notifications">
                 <span class="bi bi-bell"></span>
                 <span class="link-text">Notifications</span>
@@ -104,7 +107,20 @@
                 <span class="bi bi-cart3"></span>
                 <span class="link-text">Order Assets</span>
             </NavLink>
+
+            <NavLink class="toro-nav-link" href="client/settings">
+                <span class="bi bi-gear-wide-connected"></span>
+                <span class="link-text">Settings</span>
+            </NavLink>
         </Authorized>
     </AuthorizeView>
 
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Why: Log initialization to verify menu renders correctly during debugging
+        Console.WriteLine($"NavMenuLinks initialized at {DateTime.Now}");
+    }
+}
