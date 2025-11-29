@@ -1,8 +1,18 @@
 ﻿@page "/client/assets"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @using ToroTrack.Components.Layout
-@*attribute [Authorize(Roles = "Client")]*@
+@using ToroTrack.Data
+@using ToroTrack.Data.Entities
+
+@attribute [Authorize(Roles = "Client")]
 @rendermode InteractiveServer
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject ILogger<MyAssets> Logger
 
 <PageTitle>My Assets | Toro Track</PageTitle>
 
@@ -12,166 +22,243 @@
             <h1 class="page-title">Assets & Licenses</h1>
             <p class="page-subtitle">Track your organization's hardware inventory and software subscriptions.</p>
         </div>
-        <div class="header-right">
-            <div class="summary-badge">
-                <span class="bi bi-pc-display me-2"></span> @HardwareList.Count Devices
+        @if (!IsLoading)
+        {
+            <div class="header-right">
+                <div class="summary-badge">
+                    <span class="bi bi-pc-display me-2"></span>
+                    @HardwareList.Count Devices
+                </div>
+                <div class="summary-badge ms-2">
+                    <span class="bi bi-card-checklist me-2"></span>
+                    @SoftwareList.Count Active Licenses
+                </div>
             </div>
-            <div class="summary-badge ms-2">
-                <span class="bi bi-card-checklist me-2"></span> @LicenseList.Count Active Licenses
-            </div>
-        </div>
+        }
     </header>
 
-    <div class="assets-grid">
-
-        @* SECTION 1: SOFTWARE LICENSES *@
-        <section class="asset-section">
-            <h3 class="section-header">
-                <span class="bi bi-microsoft me-2"></span> Software Licenses
-            </h3>
-            <div class="table-responsive">
-                <table class="toro-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40%">Software</th>
-                            @* Why: Replaced Seats with Expiry Date as requested *@
-                            <th style="width: 30%">Expiry Date</th>
-                            <th style="width: 30%" class="text-center">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var license in LicenseList)
-                        {
-                            <tr>
-                                <td class="fw-bold">@license.Name</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="bi bi-calendar-event me-2 text-muted"></span>
-                                        @license.ExpiryDate.ToString("MMM dd, yyyy")
-
-                                        @* Why: Alert logic for expiring items *@
-                                        @if ((license.ExpiryDate - DateTime.Now).TotalDays < 30)
-                                        {
-                                            <span class="bi bi-exclamation-triangle-fill text-warning ms-2" title="Expiring Soon"></span>
-                                        }
-                                    </div>
-                                </td>
-                                <td class="text-center">
-                                    @if (license.IsActive)
-                                    {
-                                        <span class="status-pill active">Active</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="status-pill expired">Expired</span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+    @if (IsLoading)
+    {
+        <div class="p-5 text-center text-muted">
+            <div class="spinner-border text-success mb-3" role="status"></div>
+            <p>Syncing your asset inventory...</p>
+        </div>
+    }
+    else if (!HardwareList.Any() && !SoftwareList.Any())
+    {
+        <div class="empty-state">
+            <div class="alert alert-info border-0 shadow-sm">
+                <span class="bi bi-info-circle-fill me-2"></span>
+                You have no registered assets yet. Assets appear here once delivered by the Logistics team.
             </div>
-        </section>
+        </div>
+    }
+    else
+    {
+        <div class="assets-grid">
 
-        @* SECTION 2: HARDWARE INVENTORY *@
-        <section class="asset-section mt-4">
-            <h3 class="section-header">
-                <span class="bi bi-laptop me-2"></span> Hardware Inventory
-            </h3>
-            <div class="table-responsive">
-                <table class="toro-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 25%">Device Type</th>
-                            <th style="width: 25%">Model / Specs</th>
-                            <th style="width: 25%">Assigned To</th>
-                            <th style="width: 25%">Serial No.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in HardwareList)
-                        {
-                            <tr>
-                                <td>
-                                    @if (item.Type == "Laptop")
-                                    {
-                                        <span class="bi bi-laptop me-2 text-muted"></span>
-                                    }
-                                    else if (item.Type == "Server")
-                                    {
+            @* --- SECTION 1: SOFTWARE LICENSES --- *@
+            @if (SoftwareList.Any())
+            {
+                <section class="asset-section">
+                    <h3 class="section-header">
+                        <span class="bi bi-microsoft me-2"></span> Software Licenses
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="toro-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40%">Software Name</th>
+                                    <th style="width: 30%">Assigned Date</th>
+                                    <th style="width: 30%" class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var license in SoftwareList)
+                                {
+                                    <tr>
+                                        <td class="fw-bold">@license.Name</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <span class="bi bi-calendar-check me-2 text-muted"></span>
+                                                @license.AssignedDate.ToString("MMM dd, yyyy")
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="status-pill @(license.Status == "Active" ? "active" : "expired")">
+                                                @license.Status
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
 
-                                        <span class="bi bi-hdd-rack me-2 text-muted"></span>
-                                    }
-                                    else
-                                    {
-
-                                        <span class="bi bi-printer me-2 text-muted"></span>
-                                    }
-                                    @item.Type
-                                </td>
-                                <td>@item.Model</td>
-                                <td>
-                                    @if (string.IsNullOrEmpty(item.AssignedUser))
-                                    {
-                                        <span class="text-muted fst-italic">Unassigned</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="user-badge">@item.AssignedUser</span>
-                                    }
-                                </td>
-                                <td class="text-monospace text-muted">@item.SerialNumber</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-    </div>
+            @* --- SECTION 2: HARDWARE INVENTORY --- *@
+            @if (HardwareList.Any())
+            {
+                <section class="asset-section mt-4">
+                    <h3 class="section-header">
+                        <span class="bi bi-laptop me-2"></span> Hardware Inventory
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="toro-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%">Device Name</th>
+                                    <th style="width: 25%">Description</th>
+                                    <th style="width: 20%">Assigned Date</th>
+                                    <th style="width: 25%">Serial No.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in HardwareList)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                @* Why: Differentiate icon based on description or default to laptop *@
+                                                @if (item.Name.Contains("Server") || item.Name.Contains("System"))
+                                                {
+                                                    <span class="bi bi-hdd-rack-fill text-muted fs-5"></span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="bi bi-laptop-fill text-muted fs-5"></span>
+                                                }
+                                                <span class="fw-bold">@item.Name</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-muted small">
+                                            @(string.IsNullOrEmpty(item.Description) ? "Standard Asset" : item.Description)
+                                        </td>
+                                        <td>
+                                            @item.AssignedDate.ToString("MMM dd, yyyy")
+                                        </td>
+                                        <td class="text-monospace text-primary">
+                                            @if (!string.IsNullOrEmpty(item.SerialNumber))
+                                            {
+                                                <span class="bi bi-upc-scan me-1"></span> 
+                                                @item.SerialNumber
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted fst-italic">Pending</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+        </div>
+    }
 </div>
 
 @code {
     // --- MODELS ---
-    public class SoftwareLicense
+    // Why: Using a ViewModel to flatten DB data for easier UI binding
+    public class AssetViewModel
     {
+        public int Id { get; set; }
         public string Name { get; set; } = "";
-        // Why: Removed SeatCount as per instruction
-        public DateTime ExpiryDate { get; set; }
-        public bool IsActive => ExpiryDate > DateTime.Now;
-    }
-
-    public class HardwareItem
-    {
-        public string Type { get; set; } = ""; // Laptop, Printer, Server
-        public string Model { get; set; } = "";
+        public string Description { get; set; } = "";
         public string SerialNumber { get; set; } = "";
-        public string AssignedUser { get; set; } = "";
+        public DateTime AssignedDate { get; set; }
+        public string Status { get; set; } = "Active";
+        public string Category { get; set; } = "Hardware";
     }
 
-    // --- MOCK DATA ---
-    private List<SoftwareLicense> LicenseList = new();
-    private List<HardwareItem> HardwareList = new();
+    // --- STATE ---
+    private bool IsLoading = true;
+    private List<AssetViewModel> HardwareList = new();
+    private List<AssetViewModel> SoftwareList = new();
 
     protected override async Task OnInitializedAsync()
     {
-        // In a real app, this would fetch from DB based on ClientID
-        await Task.Delay(300);
-
-        LicenseList = new List<SoftwareLicense>
+        try
         {
-            new SoftwareLicense { Name = "Microsoft 365 Business Standard", ExpiryDate = DateTime.Now.AddDays(200) },
-            new SoftwareLicense { Name = "ESET Endpoint Protection", ExpiryDate = DateTime.Now.AddDays(15) }, // Expiring soon
-            new SoftwareLicense { Name = "Adobe Creative Cloud", ExpiryDate = DateTime.Now.AddDays(300) }
-        };
+            IsLoading = true;
 
-        HardwareList = new List<HardwareItem>
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+            {
+                var userId = UserManager.GetUserId(user);
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    await LoadAssetsForUser(userId);
+                }
+            }
+        }
+        catch (Exception ex)
         {
-            new HardwareItem { Type = "Laptop", Model = "Dell Latitude 5420", SerialNumber = "DL-554920", AssignedUser = "Sarah Smith" },
-            new HardwareItem { Type = "Laptop", Model = "Dell Latitude 5420", SerialNumber = "DL-554921", AssignedUser = "John Doe" },
-            new HardwareItem { Type = "Laptop", Model = "MacBook Pro M2", SerialNumber = "AP-993821", AssignedUser = "Design Team" },
-            new HardwareItem { Type = "Printer", Model = "HP LaserJet Pro", SerialNumber = "HP-112233", AssignedUser = "Office Floor 2" },
-            new HardwareItem { Type = "Server", Model = "Dell PowerEdge T40", SerialNumber = "SV-883344", AssignedUser = "Server Room" }
-        };
+            Logger.LogError(ex, "Error loading client assets.");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadAssetsForUser(string userId)
+    {
+        using var context = DbFactory.CreateDbContext();
+
+        // Why: Fetch assets belonging to this user
+        var rawAssets = await context.ClientAssets
+            .Where(a => a.ClientId == userId)
+            .ToListAsync();
+
+        // Why: We need to know the Category (Hardware vs Software).
+        // Logic: If linked to a CatalogItem, check its category. If null (Custom Project), assume Hardware.
+
+        // 1. Get IDs of linked catalog items
+        var catalogIds = rawAssets
+            .Where(a => a.CatalogItemId.HasValue)
+            .Select(a => a.CatalogItemId!.Value)
+            .Distinct()
+            .ToList();
+
+        // 2. Fetch those catalog items to get their categories
+        var catalogMap = await context.CatalogItems
+            .Where(c => catalogIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Category);
+
+        var allAssets = new List<AssetViewModel>();
+
+        foreach (var asset in rawAssets)
+        {
+            string category = "Hardware"; // Default
+
+            // Why: Determine category based on catalog item if it exists
+            if (asset.CatalogItemId.HasValue && catalogMap.ContainsKey(asset.CatalogItemId.Value))
+            {
+                category = catalogMap[asset.CatalogItemId.Value];
+            }
+
+            allAssets.Add(new AssetViewModel
+            {
+                Id = asset.Id,
+                Name = asset.Name,
+                Description = asset.Description,
+                SerialNumber = asset.SerialNumber ?? "N/A",
+                AssignedDate = asset.AssignedDate,
+                Status = asset.Status,
+                Category = category
+            });
+        }
+
+        // Why: Split into two lists for the UI sections
+        HardwareList = allAssets.Where(a => a.Category == "Hardware").ToList();
+        SoftwareList = allAssets.Where(a => a.Category == "Software").ToList();
+
+        Logger.LogInformation($"Loaded {HardwareList.Count} hardware and {SoftwareList.Count} software assets for user {userId}");
     }
 }

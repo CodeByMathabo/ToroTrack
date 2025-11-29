@@ -76,7 +76,6 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <h3 class="asset-title">@item.Name</h3>
-                            @* Assuming 'Cost' is the Price *@
                             <span class="price-tag">R @item.Cost.ToString("N0")</span>
                         </div>
 
@@ -130,6 +129,25 @@
     <div class="cart-modal-content">
         @if (Cart.Any())
         {
+            @* --- NEW: DELIVERY DETAILS SECTION --- *@
+            <div class="bg-light p-3 rounded mb-4 border">
+                <h6 class="fw-bold mb-3"><i class="bi bi-truck me-2"></i>Delivery Details</h6>
+                
+                <div class="form-group mb-3">
+                    <label class="small-label fw-bold">Delivery Address</label>
+                    <textarea class="form-control" rows="2" 
+                              placeholder="Office 3, Building A, Tech Park..."
+                              @bind="DeliveryAddress"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="small-label fw-bold">Site Contact Number</label>
+                    <input type="text" class="form-control" 
+                           placeholder="+27 82 000 0000"
+                           @bind="ContactNumber" />
+                </div>
+            </div>
+
             <table class="toro-table mb-4">
                 <thead>
                     <tr>
@@ -168,7 +186,7 @@
 
             <div class="alert alert-info small mb-3">
                 <span class="bi bi-info-circle-fill me-2"></span>
-                <strong>Note:</strong> Placing this order will automatically create a request on the Logistics Dashboard for fulfillment.
+                <strong>Note:</strong> Placing this order will automatically create a request on the Logistics Dashboard.
             </div>
 
             <div class="d-flex justify-content-end gap-2">
@@ -176,11 +194,11 @@
                 <button class="btn-primary-toro" @onclick="PlaceOrder" disabled="@IsSaving">
                     @if (IsSaving)
                     {
-                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Processing...</span>
+                       <span class="spinner-border spinner-border-sm me-1"></span> <span>Processing...</span>
                     }
                     else
                     {
-                         <span>Confirm Order</span>
+                        <span>Confirm Order</span>
                     }
                 </button>
             </div>
@@ -204,12 +222,15 @@
     private string ErrorMessage = "";
     private string SuccessMessage = "";
 
+    // New Delivery Inputs
+    private string DeliveryAddress = "";
+    private string ContactNumber = "";
+
     // Data State
     private List<CatalogItem> Catalog = new();
     private List<CartItemViewModel> Cart = new();
     private ApplicationUser? CurrentUser;
     private Project? ActiveProject;
-
     private IEnumerable<CatalogItem> FilteredCatalog =>
         ActiveCategory == "All" ? Catalog : Catalog.Where(i => i.Category == ActiveCategory);
 
@@ -230,11 +251,9 @@
             if (userPrincipal.Identity?.IsAuthenticated == true)
             {
                 CurrentUser = await UserManager.GetUserAsync(userPrincipal);
-                
                 if (CurrentUser != null)
                 {
                     using var context = DbFactory.CreateDbContext();
-                    // Find the first active project for this user to attach the order to
                     ActiveProject = await context.Projects
                         .Where(p => p.ClientId == CurrentUser.Id && p.Status == "Active")
                         .FirstOrDefaultAsync();
@@ -311,6 +330,13 @@
     {
         if (!Cart.Any()) return;
         
+        // Validation
+        if (string.IsNullOrWhiteSpace(DeliveryAddress) || string.IsNullOrWhiteSpace(ContactNumber))
+        {
+            ErrorMessage = "Please provide both a Delivery Address and a Contact Number.";
+            return;
+        }
+
         IsSaving = true;
         ErrorMessage = "";
 
@@ -324,7 +350,7 @@
 
             if (ActiveProject == null)
             {
-                ErrorMessage = "No active project found for your account. Please contact an admin to set up a project first.";
+                ErrorMessage = "No active project found. Contact admin.";
                 return;
             }
 
@@ -334,9 +360,12 @@
             var newOrder = new AssetOrder
             {
                 ClientId = CurrentUser.Id,
-                ProjectId = ActiveProject.Id, // Link to the project for Kanban visibility
+                ProjectId = ActiveProject.Id, 
                 OrderDate = DateTime.UtcNow,
                 Status = "Pending Approval",
+                // Storing delivery info in a way that persists (assumes extended model or description field)
+                DeliveryAddress = DeliveryAddress, 
+                ContactNumber = ContactNumber,
                 Items = new List<OrderItem>()
             };
 
@@ -357,7 +386,9 @@
             // 3. Success Feedback
             Cart.Clear();
             isCartVisible = false;
-            SuccessMessage = $"Order #{newOrder.Id} placed successfully! The logistics team has been notified.";
+            SuccessMessage = $"Order #{newOrder.Id} placed! The Logistics team will deliver to: {DeliveryAddress}";
+            DeliveryAddress = ""; // Reset
+            ContactNumber = "";
         }
         catch (Exception ex)
         {
@@ -370,7 +401,6 @@
         }
     }
 
-    // ViewModel for Cart (Keeps UI logic separate from Entity logic)
     public class CartItemViewModel
     {
         public int CatalogItemId { get; set; }

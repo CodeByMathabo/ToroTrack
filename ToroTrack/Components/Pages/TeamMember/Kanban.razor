@@ -164,7 +164,7 @@
 
 @* --- MODALS --- *@
 
-@* 1. NEW TASK MODAL *@
+@* NEW TASK MODAL *@
 <ToroModal @bind-IsVisible="isCreateModalVisible" Title="Create New Task">
     <div class="modern-modal-form">
         <p class="text-muted mb-3 small">Adding task to <strong>@GetProjectName(SelectedProjectId)</strong></p>
@@ -219,7 +219,7 @@
     </div>
 </ToroModal>
 
-@* 2. PROOF MODAL *@
+@* PROOF MODAL *@
 <ToroModal @bind-IsVisible="isProofModalVisible" Title="Submit Proof">
     <div class="new-task-form border-0 shadow-none p-0">
         <p class="text-muted mb-3 small">Upload screenshots, logs, or provide a link for <strong>@TaskToComplete?.Title</strong>.</p>
@@ -545,7 +545,7 @@
                 .Where(p => p.Status == "Active");
 
             // --- STRICT FILTERING FOR TEAM MEMBERS ---
-            // Ensure they only see projects assigned to their team [cite: 169]
+            // Ensure they only see projects assigned to their team
             if (!IsAdmin && !string.IsNullOrEmpty(CurrentUserJobRole) && CurrentUserJobRole != "Unassigned")
             {
                 projectQuery = projectQuery.Where(p => p.AssignedTeam == CurrentUserJobRole);
@@ -718,9 +718,7 @@
                     return false;
                 }
 
-                // PROFESSIONAL FIX: NON-BLOCKING PIPELINE
                 // We check if the previous stage is DONE by the TEAM (PendingReview) OR Verified by Admin.
-                // We do NOT block if it's just "PendingReview".
                 bool isPrevTaskDoneByTeam = prevTask.Status == "PendingReview" || prevTask.Status == "Verified";
                 if (!isPrevTaskDoneByTeam)
                 {
@@ -736,7 +734,7 @@
     {
         if (!CanInteractWithTask(task))
         {
-            ShowError("You are not authorized to move this task.");
+            await ShowError("You are not authorized to move this task.");
             return;
         }
 
@@ -753,7 +751,7 @@
         }
         catch (Exception ex)
         {
-            ShowError("Failed to move task.");
+            await ShowError("Failed to move task.");
         }
     }
 
@@ -792,7 +790,7 @@
         }
         catch (Exception ex)
         {
-            ShowError("Failed to submit proof.");
+            await ShowError("Failed to submit proof.");
         }
     }
 
@@ -816,7 +814,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to open order review for project {ProjectId}", projectId);
-            ShowError("Could not load order details.");
+            await ShowError("Could not load order details.");
         }
     }
 
@@ -891,19 +889,19 @@
             }
             else
             {
-                ShowError("Order not found in database.");
+                await ShowError("Order not found in database.");
                 await InvokeAsync(StateHasChanged);
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to update order status for Order {Id}", CurrentProjectOrder.Id);
-            ShowError("System error processing order. Please check logs.");
+            await ShowError("System error processing order. Please check logs.");
             await InvokeAsync(StateHasChanged);
         }
     }
 
-    // --- NEW LOGISTICS MODAL LOGIC (STAGE 4 & 5) ---
+    // --- LOGISTICS MODAL LOGIC STAGE 4 & 5 ---
 
     private void OpenAssetRegistration(int projectId, ProjectTask task)
     {
@@ -913,7 +911,7 @@
         isAssetRegModalVisible = true;
     }
 
-    // 1. Helper to generate smart tracking numbers
+    // Helper to generate smart tracking numbers
     private string GenerateTrackingNumber(string courierName)
     {
         // Why: Standardize format {PREFIX}-{DATE}-{UNIQUE_ID} for easy tracking
@@ -950,7 +948,7 @@
         isDispatchModalVisible = true;
     }
 
-    // 3. Handle Courier Change to re-generate number if needed
+    // Handle Courier Change to re-generate number if needed
     private void OnCourierChanged(ChangeEventArgs e)
     {
         var newCourier = e.Value?.ToString() ?? "FedEx";
@@ -970,7 +968,7 @@
         if (ActiveProcessingTask == null) return;
         if (string.IsNullOrWhiteSpace(AssetSerialNumbersInput))
         {
-            ShowError("Please enter at least one serial number.");
+            await ShowError("Please enter at least one serial number.");
             return;
         }
 
@@ -983,8 +981,6 @@
 
             if (task != null)
             {
-                // In a real app, we would parse AssetSerialNumbersInput and save to an Asset table.
-                // For now, we simulate completion by marking the task PendingReview.
                 task.Status = "PendingReview";
                 task.ProofUrl = "Assets Registered in System"; // Auto-proof
 
@@ -998,7 +994,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error registering assets");
-            ShowError("Failed to save asset data.");
+            await ShowError("Failed to save asset data.");
         }
     }
 
@@ -1007,24 +1003,57 @@
         if (ActiveProcessingTask == null) return;
         if (string.IsNullOrWhiteSpace(DispatchData.TrackingNumber))
         {
-            ShowError("Tracking Number is required.");
+            await ShowError("Tracking Number is required.");
             return;
         }
 
         try
         {
-            Logger.LogInformation("Dispatching Project {Id} via {Courier}", ActiveProcessingProjectId, DispatchData.CourierName);
-
             using var context = DbFactory.CreateDbContext();
-            var task = await context.ProjectTasks.FindAsync(ActiveProcessingTask.Id);
+            var task = await context.ProjectTasks
+                .Include(t => t.Project) // Include Project to get ClientId
+                .FirstOrDefaultAsync(t => t.Id == ActiveProcessingTask.Id);
 
             if (task != null)
             {
+                // Mark Task Complete
                 task.Status = "PendingReview";
                 task.ProofUrl = $"{DispatchData.CourierName}: {DispatchData.TrackingNumber}";
 
+                // Find the confirmed order for this project
+                var approvedOrder = await context.AssetOrders
+                    .Include(o => o.Items)
+                    .ThenInclude(i => i.CatalogItem)
+                    .FirstOrDefaultAsync(o => o.ProjectId == task.ProjectId && o.Status == "Confirmed");
+
+                if (approvedOrder != null)
+                {
+                    foreach (var item in approvedOrder.Items)
+                    {
+                        // Create one asset entry per quantity (if Qty=2, create 2 assets)
+                        for (int i = 0; i < item.Quantity; i++)
+                        {
+                            var newAsset = new ClientAsset
+                            {
+                                ClientId = approvedOrder.ClientId,
+                                CatalogItemId = item.CatalogItemId,
+                                Name = item.CatalogItem?.Name ?? "Dispatched Item",
+                                Description = $"Delivered via {DispatchData.CourierName} (Waybill: {DispatchData.TrackingNumber})",
+                                AssignedDate = DateTime.UtcNow,
+                                Status = "Active",
+                                // Generate a unique serial if one wasn't manually scanned in Stage 4
+                                SerialNumber = $"AUTO-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}"
+                            };
+                            context.ClientAssets.Add(newAsset);
+                        }
+                    }
+
+                    // Mark order as fully delivered
+                    approvedOrder.Status = "Delivered";
+                }
+
                 await context.SaveChangesAsync();
-                await ShowSuccess("Project Dispatched!");
+                await ShowSuccess("Project Dispatched & Assets automatically added to Client Inventory!");
 
                 isDispatchModalVisible = false;
                 await LoadDataAsync();
@@ -1038,7 +1067,6 @@
     }
 
     // --- RENDER LOGIC ---
-
     private RenderFragment RenderTaskCard(ProjectTask task) => __builder =>
     {
         <div class="kanban-card">

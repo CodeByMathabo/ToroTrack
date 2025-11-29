@@ -14,6 +14,8 @@ namespace ToroTrack.Data.Entities
         public int ProjectId { get; set; } // Links order to the specific project
         [ForeignKey("ProjectId")]
         public Project? Project { get; set; }
+        public string DeliveryAddress { get; set; } = "";
+        public string ContactNumber { get; set; } = "";
 
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         public string Status { get; set; } = "Pending"; // Pending, Confirmed, Low Stock, Fulfilled
