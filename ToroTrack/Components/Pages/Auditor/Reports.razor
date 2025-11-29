@@ -1,7 +1,11 @@
 ﻿@page "/auditor/reports"
 @using Microsoft.AspNetCore.Authorization
 @using ToroTrack.Components.Layout
-@* attribute [Authorize(Roles = "Auditor")] *@
+@using ToroTrack.Business.Services
+@using ToroTrack.Data.Entities
+@inject ReportService ReportService
+@inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize(Roles = "Auditor, Admin")] 
 @rendermode InteractiveServer
 
 <PageTitle>Reports | Toro Track</PageTitle>
@@ -127,7 +131,7 @@
                         <td class="text-monospace text-muted">@report.DateGenerated.ToString("MMM dd, yyyy")</td>
                         <td>
                             <div class="user-cell">
-                                <div class="avatar-xs bg-secondary">@report.GeneratedBy.Substring(0,1)</div>
+                                <div class="avatar-xs bg-secondary">@(report.GeneratedBy.Length > 0 ? report.GeneratedBy.Substring(0,1) : "?")</div>
                                 <span class="small-role text-dark">@report.GeneratedBy</span>
                             </div>
                         </td>
@@ -149,32 +153,32 @@
     private DateTime StartDate = DateTime.Now.AddDays(-30);
     private DateTime EndDate = DateTime.Now;
     private bool IsCustomRange = false;
-    
     private string SelectedFormat = "PDF";
     private bool IsGenerating = false;
+    private string CurrentUser = "System";
 
-    // Models
-    public class ReportHistoryItem
+    // Data List
+    private List<ReportLog> RecentReports = new();
+
+    protected override async Task OnInitializedAsync()
     {
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string Name { get; set; } = "";
-        public string Type { get; set; } = "";
-        public string Format { get; set; } = "PDF";
-        public DateTime DateGenerated { get; set; }
-        public string GeneratedBy { get; set; } = "";
-    }
-
-    private List<ReportHistoryItem> RecentReports = new();
-
-    protected override void OnInitialized()
-    {
-        // Mock Data
-        RecentReports = new List<ReportHistoryItem>
+        try 
         {
-            new ReportHistoryItem { Name = "Q3 Compliance Summary", Type = "Compliance", Format = "PDF", DateGenerated = DateTime.Now.AddDays(-2), GeneratedBy = "Jane Doe" },
-            new ReportHistoryItem { Name = "Full Asset Inventory - Nov", Type = "Assets", Format = "CSV", DateGenerated = DateTime.Now.AddDays(-5), GeneratedBy = "System" },
-            new ReportHistoryItem { Name = "Security Incident Log", Type = "Security", Format = "PDF", DateGenerated = DateTime.Now.AddDays(-12), GeneratedBy = "Admin" }
-        };
+            // Why: Fetch the current logged-in user to attribute the report generation correctly
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+            {
+                CurrentUser = user.Identity.Name ?? "Auditor";
+            }
+
+            // Why: Load historical data from the database instead of using mock data
+            RecentReports = await ReportService.GetReportHistoryAsync();
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine($"[Reports Page] Init Error: {ex.Message}");
+        }
     }
 
     private void OnDateRangeChanged(ChangeEventArgs e)
@@ -195,22 +199,32 @@
     private async Task GenerateReport()
     {
         IsGenerating = true;
-        await Task.Delay(1500);
-        
-        RecentReports.Insert(0, new ReportHistoryItem 
-        { 
-            Name = $"{SelectedReportType} ({StartDate:MMM dd}-{EndDate:MMM dd})", 
-            Type = SelectedReportType, 
-            Format = SelectedFormat, 
-            DateGenerated = DateTime.Now, 
-            GeneratedBy = "You" 
-        });
+        try 
+        {
+            // Why: Delegate complex generation logic to the service layer for maintainability
+            var newReport = await ReportService.GenerateReportAsync(
+                SelectedReportType, 
+                SelectedFormat, 
+                StartDate, 
+                EndDate, 
+                CurrentUser
+            );
 
-        IsGenerating = false;
+            // Update UI list
+            RecentReports.Insert(0, newReport);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Reports Page] Generation Error: {ex.Message}");
+        }
+        finally
+        {
+            IsGenerating = false;
+        }
     }
 
-    private void DownloadReport(ReportHistoryItem report)
+    private async Task DownloadReport(ReportLog report)
     {
-        Console.WriteLine($"Downloading {report.Name}...");
+        await ReportService.DownloadReportAsync(report);
     }
 }
