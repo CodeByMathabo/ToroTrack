@@ -1,7 +1,10 @@
 ﻿@page "/auditor/audit-trail"
 @using Microsoft.AspNetCore.Authorization
 @using ToroTrack.Components.Layout
-@* attribute [Authorize(Roles = "Auditor")] *@
+@using ToroTrack.Models
+@using ToroTrack.Business.Services
+@inject AuditService AuditService
+@attribute [Authorize(Roles = "Auditor, Admin")]
 @rendermode InteractiveServer
 
 <PageTitle>Audit Trail | Toro Track</PageTitle>
@@ -62,7 +65,10 @@
                         <td>
                             <div class="user-cell">
                                 <div class="avatar-xs @GetRoleColor(log.UserRole)">
-                                    @log.UserName.Substring(0, 1).ToUpper()
+                                    @if (!string.IsNullOrEmpty(log.UserName))
+                                    {
+                                        @log.UserName.Substring(0, 1).ToUpper()
+                                    }
                                 </div>
                                 <div class="d-flex flex-column">
                                     <span class="fw-bold">@log.UserName</span>
@@ -78,7 +84,7 @@
                         </td>
                         <td class="meta-text">
                             <div>IP: @log.IpAddress</div>
-                            <div class="text-muted" style="font-size: 0.7rem;">ID: @log.Id.ToString().Substring(0, 8)</div>
+                            <div class="text-muted" style="font-size: 0.7rem;">ID: @log.Id.ToString("D8")</div>
                         </td>
                     </tr>
                 }
@@ -109,56 +115,44 @@
         AllLogs.Where(log =>
             (ActiveFilter == "All" || log.Category == ActiveFilter) &&
             (string.IsNullOrEmpty(SearchTerm) ||
-             log.UserName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
-             log.Details.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
-             log.ActionType.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ||
-             log.IpAddress.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase))
+             (log.UserName?.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+             (log.Details?.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+             (log.ActionType?.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+             (log.IpAddress?.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
         ).OrderByDescending(l => l.Timestamp);
 
-    // --- MODELS ---
-    public class AuditLogEntry
+    // --- INITIALIZATION ---
+    protected override async Task OnInitializedAsync()
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public DateTime Timestamp { get; set; }
-        public string UserName { get; set; } = "";
-        public string UserRole { get; set; } = ""; // Admin, Client, System, Unknown
-        public string Category { get; set; } = ""; // Security, DataChange, System
-        public string ActionType { get; set; } = ""; // e.g., "Failed Login", "Update Asset"
-        public string Details { get; set; } = "";
-        public string IpAddress { get; set; } = "";
+        await LoadLogs();
     }
 
-    // --- INITIALIZATION ---
-    protected override void OnInitialized()
+    private async Task LoadLogs()
     {
-        // Mock Data Generation
-        AllLogs = new List<AuditLogEntry>
-        {
-            new AuditLogEntry { Timestamp = DateTime.Now.AddMinutes(-2), UserName = "Unknown", UserRole = "Unknown", Category = "Security", ActionType = "Failed Login", Details = "Multiple failed attempts detected for 'admin'.", IpAddress = "45.22.19.112" },
-            new AuditLogEntry { Timestamp = DateTime.Now.AddMinutes(-15), UserName = "Admin User", UserRole = "Admin", Category = "DataChange", ActionType = "Update Asset", Details = "Updated serial number for asset #LPT-004.", IpAddress = "192.168.1.45" },
-            new AuditLogEntry { Timestamp = DateTime.Now.AddHours(-1), UserName = "Law Firm Z", UserRole = "Client", Category = "System", ActionType = "File Download", Details = "Downloaded 'Q3_Compliance_Report.pdf'.", IpAddress = "105.22.13.4" },
-            new AuditLogEntry { Timestamp = DateTime.Now.AddHours(-3), UserName = "Sarah Smith", UserRole = "TeamMember", Category = "DataChange", ActionType = "Task Complete", Details = "Uploaded proof for 'Server Migration'.", IpAddress = "192.168.1.22" },
-            new AuditLogEntry { Timestamp = DateTime.Now.AddHours(-5), UserName = "System", UserRole = "System", Category = "Security", ActionType = "Auto-Scan", Details = "Daily compliance scan completed. 2 Risks found.", IpAddress = "127.0.0.1" },
-            new AuditLogEntry { Timestamp = DateTime.Now.AddDays(-1), UserName = "Retail Corp", UserRole = "Client", Category = "DataChange", ActionType = "Profile Update", Details = "Updated billing contact email.", IpAddress = "196.14.20.11" }
-        };
+        AllLogs = await AuditService.GetFullAuditTrailAsync();
     }
 
     private void ExportLogs()
     {
-        // Logic to trigger CSV download would go here
-        Console.WriteLine("[AuditTrail] Exporting logs...");
+        // Simple console export for now, can be expanded to JS File Download
+        Console.WriteLine("[AuditTrail] Exporting filtered logs to CSV format...");
+        foreach (var log in FilteredLogs)
+        {
+            Console.WriteLine($"{log.Timestamp},{log.UserName},{log.ActionType},{log.Details}");
+        }
     }
 
     // --- UI HELPERS ---
-    private string GetRoleColor(string role) => role switch
+    private string GetRoleColor(string role)
     {
-        "Admin" => "bg-primary",
-        "System" => "bg-dark",
-        "Client" => "bg-success",
-        "Unknown" => "bg-danger",
-        "TeamMember" => "bg-warning text-dark",
-        _ => "bg-secondary"
-    };
+        // Matches common Identity Role names
+        if (role.Contains("Admin", StringComparison.OrdinalIgnoreCase)) return "bg-primary";
+        if (role.Contains("Client", StringComparison.OrdinalIgnoreCase)) return "bg-success";
+        if (role.Contains("Auditor", StringComparison.OrdinalIgnoreCase)) return "bg-info text-dark";
+        if (role.Contains("Team", StringComparison.OrdinalIgnoreCase)) return "bg-warning text-dark";
+        if (role == "System") return "bg-dark";
+        return "bg-secondary";
+    }
 
     private string GetBadgeClass(string category) => category switch
     {
