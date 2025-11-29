@@ -1,9 +1,11 @@
 @page "/auditor/compliance"
 @using Microsoft.AspNetCore.Authorization
-@using ToroTrack.Components.Layout
-@* attribute [Authorize(Roles = "Auditor")] *@
+@using ToroTrack.Business.Services
+@using ToroTrack.Models
 @rendermode InteractiveServer
 @inject ILogger<Compliance> Logger
+@inject IComplianceService ComplianceService
+@inject NavigationManager Navigation
 
 <PageTitle>Compliance Intelligence | Toro Track</PageTitle>
 
@@ -39,7 +41,7 @@
                     else { <span class="bi bi-arrow-up-right"></span> }
                 </span>
             </div>
-            <small class="text-muted mt-2">Calculated via 3 Real-time Rules</small>
+            <small class="text-muted mt-2">Calculated via Live Real-time Rules</small>
         </div>
 
         @* Critical Risks Card *@
@@ -97,26 +99,22 @@
                                     </div>
                                 </td>
                                 <td>@flag.EntityName</td>
-                                
-                                @* --- SMART ACTION COLUMN (UPDATED) --- *@
                                 <td class="text-center">
+                                    @* Use the specific action logic based on category *@
                                     @if (flag.Category == "Licensing")
                                     {
-                                        @* Action: Go to License Page to update the expiry date *@
-                                        <a href="auditor/license" class="btn-action-sm btn-action-license">
-                                            <span class="bi bi-pencil-square"></span> Renew / Edit
-                                        </a>
+                                        <button class="btn-action-sm btn-action-license" @onclick="() => NavigateToFix(flag)">
+                                            <span class="bi bi-pencil-square"></span> Renew
+                                        </button>
                                     }
                                     else if (flag.Category == "Process")
                                     {
-                                        @* Action: Email the specific Team Lead to upload proof *@
                                         <button class="btn-action-sm btn-action-process" @onclick="() => PingTeamLead(flag)">
                                             <span class="bi bi-bell-fill"></span> Ping Team
                                         </button>
                                     }
                                     else if (flag.Category == "Security")
                                     {
-                                         @* Action: Security risks MUST go to Admin immediately *@
                                         <button class="btn-action-sm btn-action-security" @onclick="() => NotifyAdmin(flag)">
                                             <span class="bi bi-shield-lock-fill"></span> Alert Admin
                                         </button>
@@ -152,20 +150,9 @@
     private int ComplianceScore = 100;
     private List<AuditFlag> AuditFlags = new();
 
-    // --- MODELS ---
-    public class AuditFlag
-    {
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string Severity { get; set; } = "Low"; // Critical, Warning, Low
-        public string Category { get; set; } = ""; // Licensing, Process, Security
-        public string Message { get; set; } = "";
-        public string EntityName { get; set; } = ""; // Who/What is affected
-    }
-
     // --- INITIALIZATION ---
     protected override async Task OnInitializedAsync()
     {
-        // Why: Run an initial scan on page load so the dashboard isn't empty
         await RunAutoAudit();
     }
 
@@ -175,83 +162,53 @@
         try 
         {
             isScanning = true;
-            StateHasChanged(); // Force UI update to show spinner
+            // Why: Yield control to UI to allow spinner to render
+            await Task.Yield(); 
 
-            Console.WriteLine($"[Auditor] Starting automated compliance scan at {DateTime.Now}");
+            // Why: Delegate complex logic to the service layer for maintainability
+            var result = await ComplianceService.RunComplianceScanAsync();
             
-            // Simulate heavy database processing delay
-            await Task.Delay(1200);
-
-            // Clear previous scan
-            AuditFlags.Clear();
-
-            // RULE 1: Check for Expiring Licenses (Risk Management)
-            // In real app: _context.Licenses.Where(l => l.Expiry < DateTime.Now.AddDays(30))
-            AddFlag("Critical", "Licensing", "Adobe Creative Cloud license expired 2 days ago.", "Retail Corp");
-            AddFlag("Warning", "Licensing", "Microsoft 365 E5 expiring in 14 days.", "Law Firm Z");
-
-            // RULE 2: Check for Tasks marked 'Done' without Proof (Process Integrity)
-            // In real app: _context.Tasks.Where(t => t.Status == 'Verified' && string.IsNullOrEmpty(t.Proof))
-            AddFlag("Warning", "Process", "Task 'Server Migration' marked verified without attachment.", "Infrastructure Team");
-
-            // RULE 3: Check for Security Anomalies (Access Control)
-            // In real app: _context.AuditLogs.Where(l => l.Action == 'FailedLogin' && l.Count > 5)
-            AddFlag("Low", "Security", "3 Failed login attempts detected from unknown IP.", "Admin Account");
-
-            // CALCULATE SCORE
-            // Why: Deduct points based on severity to give a quick health metric
-            int deduction = (AuditFlags.Count(f => f.Severity == "Critical") * 15) 
-                          + (AuditFlags.Count(f => f.Severity == "Warning") * 5)
-                          + (AuditFlags.Count(f => f.Severity == "Low") * 2);
-            
-            ComplianceScore = Math.Max(0, 100 - deduction);
-
-            Console.WriteLine($"[Auditor] Scan complete. Score: {ComplianceScore}%");
+            ComplianceScore = result.Score;
+            AuditFlags = result.Flags;
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error during automated audit scan.");
-            AddFlag("Critical", "System", "Audit Engine Failure. Check logs.", "System Internal");
+            AuditFlags.Add(new AuditFlag { Severity = "Critical", Message = "UI Failure during scan." });
         }
         finally 
         {
             isScanning = false;
+            StateHasChanged();
         }
     }
 
-    // --- HELPER FUNCTIONS ---
-    private void AddFlag(string severity, string category, string msg, string entity)
+    // --- ACTION HANDLERS ---
+    private void NavigateToFix(AuditFlag flag)
     {
-        AuditFlags.Add(new AuditFlag 
-        { 
-            Severity = severity, 
-            Category = category, 
-            Message = msg, 
-            EntityName = entity 
-        });
+        if(!string.IsNullOrEmpty(flag.ActionUrl))
+        {
+            Navigation.NavigateTo(flag.ActionUrl);
+        }
     }
 
-    // Logic to "Resolve" (Simulate action taken)
     private void ResolveFlag(AuditFlag flag)
     {
-        // Why: Simulate taking action and clearing the risk
-        Console.WriteLine($"[Auditor] Resolving flag: {flag.Id}");
+        // Why: In a real scenario, this would call an API to mark the issue as ignored or resolved
         AuditFlags.Remove(flag);
         RecalculateScore();
     }
 
     private void PingTeamLead(AuditFlag flag)
     {
-        Console.WriteLine($"[Auditor] Sending reminder to team lead for: {flag.EntityName}");
-        // In real app: NotificationService.Send(flag.EntityName, "Please upload proof.");
-        // We don't remove the flag immediately because they haven't fixed it yet!
+        // Placeholder for notification logic
+        Logger.LogInformation($"Pinged team for: {flag.EntityName}");
     }
 
     private void NotifyAdmin(AuditFlag flag)
     {
-        Console.WriteLine($"[Auditor] ESCALATING to Admin: {flag.Message}");
-        // In real app: EmailService.SendAdminAlert(flag);
-        ResolveFlag(flag); // Assume escalation counts as "handling" the dashboard alert
+        Logger.LogWarning($"Escalated to Admin: {flag.Message}");
+        ResolveFlag(flag); 
     }
 
     private void RecalculateScore()

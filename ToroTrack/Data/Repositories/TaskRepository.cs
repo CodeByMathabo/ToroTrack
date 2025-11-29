@@ -10,6 +10,7 @@ namespace ToroTrack.Data.Repositories
         Task<ProjectTask?> GetTaskByIdAsync(int id);
         Task AddTaskAsync(ProjectTask task);
         Task UpdateTaskAsync(ProjectTask task);
+        Task<List<ProjectTask>> GetVerifiedTasksWithoutProofAsync();
     }
 
     public class TaskRepository : ITaskRepository
@@ -56,6 +57,34 @@ namespace ToroTrack.Data.Repositories
             using var context = await _contextFactory.CreateDbContextAsync();
             context.ProjectTasks.Update(task);
             await context.SaveChangesAsync();
+        }
+
+        // Why: Identifies tasks marked 'Verified' that lack a ProofUrl, indicating a process gap.
+        public async Task<List<ProjectTask>> GetVerifiedTasksWithoutProofAsync()
+        {
+            try
+            {
+                using var context = await _contextFactory.CreateDbContextAsync();
+
+                // Why: Logging to trace compliance check execution
+                Console.WriteLine("TaskRepository: Querying verified tasks without proof...");
+
+                var invalidTasks = await context.ProjectTasks
+                    .Include(t => t.Project)
+                        .ThenInclude(p => p.Client)
+                    .Where(t => t.Status == "Verified" && string.IsNullOrEmpty(t.ProofUrl))
+                    .ToListAsync();
+
+                Console.WriteLine($"TaskRepository: Found {invalidTasks.Count} tasks violating verification rules.");
+
+                return invalidTasks;
+            }
+            catch (Exception ex)
+            {
+                // Why: Log error but return empty list to prevent crashing the entire compliance dashboard
+                Console.WriteLine($"TaskRepository Error in GetVerifiedTasksWithoutProofAsync: {ex.Message}");
+                return new List<ProjectTask>();
+            }
         }
     }
 }
