@@ -1,0 +1,168 @@
+﻿@page "/team/notifications"
+@using Microsoft.AspNetCore.Authorization
+@using ToroTrack.Business.Services
+@using ToroTrack.Data.Entities
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject INotificationService NotificationService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Notifications | Toro Track</PageTitle>
+
+<div class="page-shell">
+    <header class="content-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">Notifications</h1>
+                <p class="page-subtitle">Alerts and updates from the audit team.</p>
+            </div>
+            @if (NotificationsList.Any(n => !n.IsRead))
+            {
+                <span class="badge bg-danger rounded-pill px-3 py-2">
+                    @NotificationsList.Count(n => !n.IsRead) Unread
+                </span>
+            }
+        </div>
+    </header>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-2">Loading alerts...</p>
+        </div>
+    }
+    else if (!NotificationsList.Any())
+    {
+        <div class="empty-state">
+            <span class="bi bi-bell-slash empty-icon"></span>
+            <p class="empty-text">You're all caught up! No new notifications.</p>
+        </div>
+    }
+    else
+    {
+        <div class="notification-container">
+            @foreach (var note in NotificationsList)
+            {
+                <div class="notification-card @(note.IsRead ? "read" : "unread")">
+                    @* ICON BASED ON TYPE *@
+                    <div class="notif-icon">
+                        @if (note.Type == "Alert")
+                        {
+                            <div class="icon-circle alert">
+                                <span class="bi bi-exclamation-triangle-fill"></span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="icon-circle info">
+                                <span class="bi bi-info-circle-fill"></span>
+                            </div>
+                        }
+                    </div>
+
+                    @* CONTENT *@
+                    <div class="notif-content">
+                        <div class="notif-header">
+                            @if (note.Type == "Alert")
+                            {
+                                <span class="notif-badge alert">Action Required</span>
+                            }
+                            else
+                            {
+                                <span class="notif-badge info">Update</span>
+                            }
+                            <span class="notif-time">@GetTimeAgo(note.CreatedAt)</span>
+                        </div>
+
+                        <div class="notif-message">
+                            @note.Message
+                        </div>
+                    </div>
+
+                    @* ACTIONS *@
+                    <div class="notif-actions">
+                        @if (!string.IsNullOrEmpty(note.ActionUrl))
+                        {
+                            <a href="@note.ActionUrl" class="btn-resolve-link" @onclick="() => MarkRead(note)">
+                                Fix Now <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                        }
+
+                        @if (!note.IsRead)
+                        {
+                            <button class="btn-mark-read" title="Mark as read" @onclick="() => MarkRead(note)">
+                                <i class="bi bi-check2-circle"></i> Mark Read
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Notification> NotificationsList = new();
+    private bool isLoading = true;
+    private string currentUserId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Get Current User ID safely
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            // Identity usually stores the ID in the NameIdentifier claim
+            currentUserId = user.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            if (!string.IsNullOrEmpty(currentUserId))
+            {
+                await LoadNotifications();
+            }
+        }
+        else
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadNotifications()
+    {
+        try
+        {
+            NotificationsList = await NotificationService.GetMyNotificationsAsync(currentUserId);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task MarkRead(Notification note)
+    {
+        if (!note.IsRead)
+        {
+            // Optimistic UI update for instant feedback
+            note.IsRead = true;
+            StateHasChanged();
+
+            // Background database update
+            await NotificationService.MarkAsReadAsync(note.Id);
+        }
+    }
+
+    private string GetTimeAgo(DateTime date)
+    {
+        var span = DateTime.UtcNow - date;
+        if (span.TotalMinutes < 1) return "Just now";
+        if (span.TotalMinutes < 60) return $"{Math.Floor(span.TotalMinutes)}m ago";
+        if (span.TotalHours < 24) return $"{Math.Floor(span.TotalHours)}h ago";
+        return date.ToLocalTime().ToString("MMM dd");
+    }
+}

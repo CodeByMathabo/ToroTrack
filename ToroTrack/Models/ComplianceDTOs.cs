@@ -9,5 +9,8 @@
         public string Message { get; set; } = "";
         public string EntityName { get; set; } = ""; // Who is affected
         public string? ActionUrl { get; set; }
+        public string? TargetUserId { get; set; }
+        public int EntityId { get; set; } 
+        public string EntityType { get; set; } = ""; 
     }
 }

@@ -1,0 +1,189 @@
+﻿/* --- LAYOUT (Standard ToroTrack Page) --- */
+.page-shell {
+    padding: 1rem;
+    max-width: 1000px; /* Slightly narrower for readability */
+    margin: 0 auto;
+    height: calc(100vh - 6rem);
+    display: flex;
+    flex-direction: column;
+}
+
+.content-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(40, 54, 24, 0.1);
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--toro-bg);
+    margin: 0 0 0.5rem 0;
+}
+
+.page-subtitle {
+    color: #666;
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* --- NOTIFICATION LIST --- */
+.notification-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 8px; /* Space for scrollbar */
+}
+
+/* Base Card Style */
+.notification-card {
+    background-color: #fff;
+    border: 1px solid rgba(40, 54, 24, 0.1);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    transition: all 0.2s ease;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+    .notification-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        border-color: var(--toro-hover);
+    }
+
+    /* Unread State - Highlighted */
+    .notification-card.unread {
+        background-color: #fff;
+        border-left: 5px solid var(--toro-orange); /* Accent Orange for attention */
+    }
+
+    /* Read State - Muted */
+    .notification-card.read {
+        background-color: #f9f9f9; /* Muted background */
+        border-left: 5px solid rgba(0,0,0,0.1); /* Grey border */
+        opacity: 0.85;
+    }
+
+        .notification-card.read:hover {
+            opacity: 1;
+        }
+
+/* --- CARD CONTENT --- */
+.notif-content {
+    flex-grow: 1;
+}
+
+.notif-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.5rem;
+}
+
+.notif-time {
+    font-size: 0.75rem;
+    color: #888;
+    font-weight: 600;
+}
+
+.notif-message {
+    color: #333;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+}
+
+/* --- BADGES (Reusing Logic from Compliance) --- */
+.notif-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+    .notif-badge.alert {
+        background-color: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+    }
+
+    .notif-badge.info {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        border: 1px solid #badbcc;
+    }
+
+/* --- ACTIONS --- */
+.notif-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    min-width: 120px;
+}
+
+.btn-resolve-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--toro-bg);
+    color: var(--toro-text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+    .btn-resolve-link:hover {
+        background-color: var(--toro-hover);
+        color: white;
+    }
+
+.btn-mark-read {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    transition: color 0.2s;
+}
+
+    .btn-mark-read:hover {
+        background-color: rgba(0,0,0,0.05);
+        color: var(--toro-bg);
+    }
+
+/* --- EMPTY STATE --- */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    background-color: rgba(255,255,255,0.5);
+    border: 2px dashed rgba(40, 54, 24, 0.1);
+    border-radius: 12px;
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    color: rgba(40, 54, 24, 0.2);
+    margin-bottom: 1rem;
+}
+
+.empty-text {
+    color: #666;
+    font-weight: 600;
+}

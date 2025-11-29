@@ -6,6 +6,7 @@
 @inject ILogger<Compliance> Logger
 @inject IComplianceService ComplianceService
 @inject NavigationManager Navigation
+@inject INotificationService NotificationService
 
 <PageTitle>Compliance Intelligence | Toro Track</PageTitle>
 
@@ -199,10 +200,30 @@
         RecalculateScore();
     }
 
-    private void PingTeamLead(AuditFlag flag)
+    private async Task PingTeamLead(AuditFlag flag)
     {
-        // Placeholder for notification logic
-        Logger.LogInformation($"Pinged team for: {flag.EntityName}");
+        try 
+        {
+            isScanning = true; // Show loading state
+            
+            // 1. Call the backend to perform the database update
+            await ComplianceService.ResolveRiskAsync(flag, "Ping");
+
+            // 2. Visual Feedback
+            Logger.LogInformation($"Action taken on {flag.EntityName}");
+            
+            // 3. Remove from UI immediately (Optimistic update)
+            AuditFlags.Remove(flag);
+            RecalculateScore();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to resolve risk.");
+        }
+        finally
+        {
+            isScanning = false;
+        }
     }
 
     private void NotifyAdmin(AuditFlag flag)

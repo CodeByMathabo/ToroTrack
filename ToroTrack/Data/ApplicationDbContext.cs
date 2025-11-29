@@ -16,5 +16,6 @@ namespace ToroTrack.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Meeting> Meetings { get; set; }
         public DbSet<License> Licenses { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
     }
 }

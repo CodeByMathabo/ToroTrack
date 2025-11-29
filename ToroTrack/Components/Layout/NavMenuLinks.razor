@@ -37,26 +37,21 @@
     @* --- AUDITOR LINKS --- *@
     <AuthorizeView Roles="Auditor">
         <Authorized>
-            <div class="menu-section-label">Auditor Portal</div>
+            <div class="menu-section-label">Audit Portal</div>
 
             <NavLink class="toro-nav-link" href="auditor/compliance">
                 <span class="bi bi-shield-check"></span>
                 <span class="link-text">Compliance</span>
             </NavLink>
 
+            <NavLink class="toro-nav-link" href="auditor/reports">
+                <span class="bi bi-file-earmark-bar-graph"></span>
+                <span class="link-text">Reports</span>
+            </NavLink>
+
             <NavLink class="toro-nav-link" href="auditor/audit-trail">
                 <span class="bi bi-clock-history"></span>
                 <span class="link-text">Audit Trail</span>
-            </NavLink>
-
-            <NavLink class="toro-nav-link" href="auditor/license">
-                <span class="bi bi-file-text"></span>
-                <span class="link-text">License Config</span>
-            </NavLink>
-
-            <NavLink class="toro-nav-link" href="auditor/reports">
-                <span class="bi bi-box-arrow-up"></span>
-                <span class="link-text">Reporting</span>
             </NavLink>
         </Authorized>
     </AuthorizeView>
@@ -69,6 +64,12 @@
             <NavLink class="toro-nav-link" href="team/kanban">
                 <span class="bi bi-kanban"></span>
                 <span class="link-text">My Tasks</span>
+            </NavLink>
+
+            @* Why: Added access to the new notification center for audit alerts *@
+            <NavLink class="toro-nav-link" href="team/notifications">
+                <span class="bi bi-bell"></span>
+                <span class="link-text">Notifications</span>
             </NavLink>
         </Authorized>
     </AuthorizeView>
@@ -101,8 +102,3 @@
     </AuthorizeView>
 
 </div>
-
-@code {
-    // Why: Logic is handled directly via AuthorizeView, no C# needed here.
-    // This keeps the component purely focused on rendering the correct links.
-}
