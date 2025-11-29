@@ -51,6 +51,7 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<ILicenseRepository, LicenseRepository>();
+builder.Services.AddScoped<LicenseService>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<IComplianceService, ComplianceService>();
