@@ -5,6 +5,7 @@
 @using ToroTrack.Models
 @using ToroTrack.Data.Entities
 
+@attribute [Authorize(Roles = "Admin")]
 @inject ILogger<InviteUser> Logger
 @inject IInviteService InviteService
 @rendermode InteractiveServer

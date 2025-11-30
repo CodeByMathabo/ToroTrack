@@ -3,6 +3,8 @@
 @using ToroTrack.Business.Services
 @using ToroTrack.Models
 @rendermode InteractiveServer
+
+@attribute [Authorize(Roles = "Auditor")]
 @inject ILogger<Compliance> Logger
 @inject IComplianceService ComplianceService
 @inject NavigationManager Navigation

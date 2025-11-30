@@ -6,9 +6,9 @@
 @using ToroTrack.Components.Layout
 @using ToroTrack.Data
 @using ToroTrack.Data.Entities
-
 @rendermode InteractiveServer
 
+@attribute [Authorize(Roles = "Client")]
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UserManager<ApplicationUser> UserManager

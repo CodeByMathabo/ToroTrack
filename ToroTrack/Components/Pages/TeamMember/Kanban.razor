@@ -13,7 +13,7 @@
 
 @rendermode InteractiveServer
 
-@* Enforce Security: Only Team Members and Admins can enter [cite: 78] *@
+@* Enforce Security: Only Team Members and Admins can enter *@
 @attribute [Authorize(Roles = "Admin, TeamMember")]
 
 @inject IDbContextFactory<ApplicationDbContext> DbFactory

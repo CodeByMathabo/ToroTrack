@@ -3,6 +3,7 @@
 @using System.Security.Claims
 @using ToroTrack.Business.Services
 @using ToroTrack.Models
+
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IClientSettingsService SettingsService
 @attribute [Authorize(Roles = "Client")]

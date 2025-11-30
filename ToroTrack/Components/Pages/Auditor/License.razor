@@ -5,6 +5,8 @@
 @using ToroTrack.Data
 @* Explicit alias to avoid conflict with the component class name *@
 @using LicenseEntity = ToroTrack.Data.Entities.License
+
+@attribute [Authorize(Roles = "Auditor")]
 @inject LicenseService LicenseService
 @inject ILogger<License> Logger
 @rendermode InteractiveServer

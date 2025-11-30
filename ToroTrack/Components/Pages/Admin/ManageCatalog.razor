@@ -5,8 +5,7 @@
 @using ToroTrack.Data
 @using ToroTrack.Data.Entities
 
-@* Secure this page for Admins only *@
-@attribute [Authorize(Roles = "Admin, TeamMember")]
+@attribute [Authorize(Roles = "Admin")]
 @rendermode InteractiveServer
 
 @inject IDbContextFactory<ApplicationDbContext> DbFactory

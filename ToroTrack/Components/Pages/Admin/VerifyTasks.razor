@@ -6,7 +6,6 @@
 @using ToroTrack.Data
 @using ToroTrack.Data.Entities
 
-@* Security: Only Admins should see this page *@
 @attribute [Authorize(Roles = "Admin")]
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject ILogger<VerifyTasks> Logger
