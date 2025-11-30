@@ -18,5 +18,6 @@ namespace ToroTrack.Data
         public DbSet<License> Licenses { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<ReportLog> ReportLogs { get; set; }
+        public DbSet<ClientPreference> ClientPreferences { get; set; }
     }
 }

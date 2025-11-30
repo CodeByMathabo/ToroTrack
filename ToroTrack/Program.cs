@@ -58,6 +58,8 @@ builder.Services.AddScoped<IComplianceService, ComplianceService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<IClientSettingsRepository, ClientSettingsRepository>();
+builder.Services.AddScoped<IClientSettingsService, ClientSettingsService>();
 
 
 // IDENTITY CONFIGURATION

@@ -1,7 +1,11 @@
 ﻿@page "/client/settings"
 @using Microsoft.AspNetCore.Authorization
-@using ToroTrack.Components.Layout
-@*attribute [Authorize(Roles = "Client")]*@
+@using System.Security.Claims
+@using ToroTrack.Business.Services
+@using ToroTrack.Models
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IClientSettingsService SettingsService
+@attribute [Authorize(Roles = "Client")]
 @rendermode InteractiveServer
 
 <PageTitle>Settings | Toro Track</PageTitle>
@@ -13,7 +17,7 @@
             <p class="page-subtitle">Manage your notification preferences and account details.</p>
         </div>
         <div class="header-right">
-            <button class="btn-primary-toro" @onclick="SaveChanges">
+            <button class="btn-primary-toro" @onclick="SaveChanges" disabled="@isSaving">
                 @if (isSaving)
                 {
                     <span class="spinner-border spinner-border-sm me-2"></span> <span>Saving...</span>
@@ -51,7 +55,7 @@
                             <p class="toggle-desc">Notify me when a project stage is completed and requires my electronic signature.</p>
                         </div>
                         <label class="toro-switch">
-                            <input type="checkbox" @bind="ClientPrefs.NotifyOnMilestone">
+                            <input type="checkbox" @bind="SettingsModel.Preferences.NotifyOnMilestone">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -65,7 +69,7 @@
                             <p class="toggle-desc">Notify me when an admin replies to my help desk queries.</p>
                         </div>
                         <label class="toro-switch">
-                            <input type="checkbox" @bind="ClientPrefs.NotifyOnQueryReply">
+                            <input type="checkbox" @bind="SettingsModel.Preferences.NotifyOnQueryReply">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -79,7 +83,7 @@
                             <p class="toggle-desc">Receive calendar invites when a requested meeting is confirmed by an admin.</p>
                         </div>
                         <label class="toro-switch">
-                            <input type="checkbox" @bind="ClientPrefs.NotifyOnMeeting">
+                            <input type="checkbox" @bind="SettingsModel.Preferences.NotifyOnMeeting">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -96,17 +100,17 @@
                 <div class="setting-card">
                     <div class="form-group mb-3">
                         <label class="small-label">Company Name</label>
-                        <input @bind="AccountDetails.CompanyName" class="form-control" placeholder="Enter company name" />
+                        <input @bind="SettingsModel.Account.CompanyName" class="form-control" placeholder="Enter company name" />
                     </div>
 
                     <div class="form-group mb-3">
                         <label class="small-label">Email Address</label>
-                        <input @bind="AccountDetails.Email" class="form-control" placeholder="name@company.com" type="email" />
+                        <input @bind="SettingsModel.Account.Email" class="form-control" placeholder="name@company.com" type="email" />
                     </div>
 
                     <div class="form-group mb-3">
                         <label class="small-label">Contact Number</label>
-                        <input @bind="AccountDetails.ContactNumber" class="form-control" placeholder="+27 XX XXX XXXX" />
+                        <input @bind="SettingsModel.Account.ContactNumber" class="form-control" placeholder="+27 XX XXX XXXX" />
                     </div>
                 </div>
             </div>
@@ -126,45 +130,58 @@
     private string ActiveTab = "Notifications";
     private bool isSaving = false;
     private bool showSuccessMessage = false;
+    private string currentUserId = "";
 
-    // Notification Settings Model
-    private ClientPreferences ClientPrefs = new()
-    {
-        NotifyOnMilestone = true,
-        NotifyOnQueryReply = true,
-        NotifyOnMeeting = false
-    };
+    // View Model containing both sections
+    private ClientSettingsViewModel SettingsModel = new();
 
-    // Account Settings Model
-    private ClientAccount AccountDetails = new()
+    protected override async Task OnInitializedAsync()
     {
-        CompanyName = "Law Firm Z",
-        Email = "client@lawfirmz.com",
-        ContactNumber = "+27 82 123 4567"
-    };
+        try 
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity != null && user.Identity.IsAuthenticated)
+            {
+                currentUserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+                if (!string.IsNullOrEmpty(currentUserId))
+                {
+                    // Fetch existing data from DB
+                    SettingsModel = await SettingsService.GetSettingsForUserAsync(currentUserId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading settings: {ex.Message}");
+        }
+    }
 
     private async Task SaveChanges()
     {
+        if (string.IsNullOrEmpty(currentUserId)) return;
+
         isSaving = true;
-        await Task.Delay(800); // Simulate DB save
-        isSaving = false;
         
-        showSuccessMessage = true;
-        await Task.Delay(3000);
-        showSuccessMessage = false;
-    }
-
-    public class ClientPreferences
-    {
-        public bool NotifyOnMilestone { get; set; }
-        public bool NotifyOnQueryReply { get; set; }
-        public bool NotifyOnMeeting { get; set; }
-    }
-
-    public class ClientAccount
-    {
-        public string CompanyName { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string ContactNumber { get; set; } = "";
+        try 
+        {
+            // Pass the model to service to save to DB
+            await SettingsService.UpdateSettingsAsync(currentUserId, SettingsModel);
+            
+            showSuccessMessage = true;
+            StateHasChanged(); // Force UI refresh for toast
+            
+            await Task.Delay(3000);
+            showSuccessMessage = false;
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"Error saving settings: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 }
