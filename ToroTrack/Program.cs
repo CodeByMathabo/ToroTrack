@@ -60,6 +60,8 @@ builder.Services.AddScoped<IReportRepository, ReportRepository>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddScoped<IClientSettingsRepository, ClientSettingsRepository>();
 builder.Services.AddScoped<IClientSettingsService, ClientSettingsService>();
+builder.Services.AddScoped<ISystemSettingsRepository, SystemSettingsRepository>();
+builder.Services.AddScoped<ISystemSettingsService, SystemSettingsService>();
 
 
 // IDENTITY CONFIGURATION
