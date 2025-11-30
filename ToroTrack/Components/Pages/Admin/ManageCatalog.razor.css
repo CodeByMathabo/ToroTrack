@@ -15,6 +15,14 @@
     border-bottom: 1px solid rgba(40, 54, 24, 0.1);
 }
 
+/* Ensures buttons are side-by-side */
+.header-right {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+
 .page-title {
     font-size: 2rem;
     font-weight: 800;

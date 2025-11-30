@@ -1,6 +1,8 @@
 ﻿@page "/admin/catalog"
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
+@using System.Text.RegularExpressions
 @using ToroTrack.Components.Layout
 @using ToroTrack.Data
 @using ToroTrack.Data.Entities
@@ -10,6 +12,9 @@
 
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject ILogger<ManageCatalog> Logger
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Asset & Inventory | Toro Track</PageTitle>
 
@@ -19,7 +24,15 @@
             <h1 class="page-title">Catalog & Inventory</h1>
             <p class="page-subtitle">Manage product listings and track hardware stock levels.</p>
         </div>
+        
         <div class="header-right">
+            @if (IsLogisticsCoordinator && TaskId.HasValue)
+            {
+                <button class="btn-primary-toro" style="background-color: #283618; border-color: #283618;" @onclick="ConfirmStockVerification">
+                    <span class="bi bi-check-circle-fill me-2"></span> Confirm Verified
+                </button>
+            }
+
             <button class="btn-primary-toro" @onclick="OpenAddModal">
                 Add New Product
             </button>
@@ -43,10 +56,10 @@
     <div class="table-container">
         @if (isLoading)
         {
-             <div class="p-5 text-center text-muted">
+            <div class="p-5 text-center text-muted">
                 <div class="spinner-border text-primary mb-2" role="status"></div>
                 <p>Loading inventory...</p>
-             </div>
+            </div>
         }
         else
         {
@@ -66,7 +79,6 @@
                     {
                         <tr>
                             <td>
-                                @* Map Category to Badge Style *@
                                 <span class="badge-type @item.Category.ToLower()">@item.Category</span>
                             </td>
 
@@ -84,19 +96,31 @@
                             <td>
                                 @if (item.Category == "Hardware")
                                 {
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="fw-bold">@item.StockQuantity</span>
-                                        @if (item.StockQuantity == 0)
+                                    <div class="d-flex flex-column justify-content-center">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-bold fs-6">@item.StockQuantity</span>
+                                            
+                                            @if (item.StockQuantity == 0)
+                                            {
+                                                <span class="badge-stock out">Out of Stock</span>
+                                            }
+                                            else if (item.StockQuantity < 5)
+                                            {
+                                                <span class="badge-stock low">Low Stock</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge-stock good">In-Stock</span>
+                                            }
+                                        </div>
+
+                                        @* VISUAL HISTORY: Display the human-readable update string *@
+                                        @{ var history = GetStockHistory(item.Description); }
+                                        @if (!string.IsNullOrEmpty(history))
                                         {
-                                            <span class="badge-stock out">Out of Stock</span>
-                                        }
-                                        else if (item.StockQuantity < 5)
-                                        {
-                                            <span class="badge-stock low">Low Stock</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge-stock good">In Stock</span>
+                                            <small class="text-info fst-italic mt-1" style="font-size: 0.7rem;">
+                                                <i class="bi bi-clock-history"></i> @history
+                                            </small>
                                         }
                                     </div>
                                 }
@@ -106,7 +130,6 @@
                                 }
                             </td>
 
-                            @* Display Cost formatted as Currency *@
                             <td>R @item.Cost.ToString("N0")</td>
                             
                             <td>
@@ -122,12 +145,16 @@
 
                             <td class="text-center">
                                 <div class="d-flex justify-content-center gap-2">
-                                    <button class="btn-action-edit" @onclick="() => EditItem(item)">
-                                        Edit
+                                    <button class="btn-action-edit" @onclick="() => OpenStockUpdateModal(item)" title="Update Count">
+                                        <i class="bi bi-calculator"></i> Qty
                                     </button>
-                                    <button class="btn-action-delete" @onclick="() => DeleteItem(item)">
-                                        Delete
-                                    </button>
+                                    
+                                    @if (!IsLogisticsCoordinator)
+                                    {
+                                         <button class="btn-action-delete" @onclick="() => DeleteItem(item)">
+                                            Delete
+                                        </button>
+                                    }
                                 </div>
                             </td>
                         </tr>
@@ -146,7 +173,7 @@
     </div>
 </div>
 
-@* ADD/EDIT MODAL *@
+@* ADD/UPDATE MODAL *@
 <ToroModal @bind-IsVisible="isModalVisible" Title="@modalTitle">
     <EditForm Model="CurrentItem" OnValidSubmit="SaveItem">
         <DataAnnotationsValidator />
@@ -156,10 +183,37 @@
             <div class="alert alert-danger small mb-3">@ErrorMessage</div>
         }
 
+        @* STOCK CALCULATION UI (Only visible in Stock Mode) *@
+        @if (isStockMode && CurrentItem.Category == "Hardware")
+        {
+            <div class="bg-light p-3 rounded-3 border mb-3">
+                <label class="small-label text-muted mb-2">Calculation Preview</label>
+                
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                     <span class="text-muted small">Original Level:</span>
+                     <span class="fw-bold text-dark">@OriginalStock</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-1 border-bottom pb-2">
+                     <span class="text-muted small">Adjustment:</span>
+                     @{
+                         int diff = CurrentItem.StockQuantity - OriginalStock;
+                         string colorClass = diff > 0 ? "text-success" : (diff < 0 ? "text-danger" : "text-muted");
+                         string actionText = diff > 0 ? "Added" : (diff < 0 ? "Removed" : "No Change");
+                     }
+                     <span class="fw-bold @colorClass">@actionText @Math.Abs(diff)</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                     <span class="small-label mb-0">New Total:</span>
+                     <span class="badge bg-dark fs-6">@CurrentItem.StockQuantity</span>
+                </div>
+            </div>
+        }
+
         <div class="form-group mb-3">
             <label class="small-label">Category</label>
-            @* Bind to 'Category' property from Entity *@
-            <InputSelect @bind-Value="CurrentItem.Category" class="form-select toro-input">
+            <InputSelect @bind-Value="CurrentItem.Category" class="form-select toro-input" disabled="@isStockMode">
                 <option value="Hardware">Hardware</option>
                 <option value="Software">Software</option>
             </InputSelect>
@@ -167,31 +221,37 @@
 
         <div class="form-group mb-3">
             <label class="small-label">Product Name</label>
-            <InputText @bind-Value="CurrentItem.Name" class="form-control toro-input" placeholder="e.g. Dell Latitude 5420" />
-            <ValidationMessage For="@(() => CurrentItem.Name)" class="text-danger" />
+            <InputText @bind-Value="CurrentItem.Name" class="form-control toro-input" 
+                      placeholder="e.g. Dell Latitude 5420" disabled="@isStockMode" />
         </div>
 
         @if (CurrentItem.Category == "Hardware")
         {
             <div class="form-group mb-3 animate-fade-in">
-                <label class="small-label">Stock Quantity</label>
-                <InputNumber @bind-Value="CurrentItem.StockQuantity" class="form-control toro-input" placeholder="0" />
-                <small class="text-muted" style="font-size: 0.7rem;">
-                    <span class="bi bi-info-circle"></span> Items with 0 stock will be hidden from clients.
-                </small>
+                <label class="small-label">
+                    @(isStockMode ? "Update Total Quantity" : "Stock Quantity")
+                </label>
+                <InputNumber @bind-Value="CurrentItem.StockQuantity" class="form-control toro-input" 
+                           style="@(isStockMode ? "border: 2px solid #283618; background-color: #fefae0;" : "")" 
+                           placeholder="0" />
+                @if(isStockMode)
+                {
+                     <small class="text-success fw-bold" style="font-size: 0.75rem;">
+                        <i class="bi bi-pencil-fill"></i> Enter the new total count here.
+                     </small>
+                }
             </div>
         }
         
         <div class="form-group mb-3">
             <label class="small-label">Cost (ZAR)</label>
-            @* Bind to 'Cost' property from Entity *@
-            <InputNumber @bind-Value="CurrentItem.Cost" class="form-control toro-input" />
-            <ValidationMessage For="@(() => CurrentItem.Cost)" class="text-danger" />
+            <InputNumber @bind-Value="CurrentItem.Cost" class="form-control toro-input" disabled="@isStockMode" />
         </div>
 
         <div class="form-group mb-4">
-            <label class="small-label">Description</label>
-            <InputTextArea @bind-Value="CurrentItem.Description" class="form-control toro-input" rows="3" placeholder="Description..." />
+            <label class="small-label">Description / Notes</label>
+            <InputTextArea @bind-Value="CurrentItem.Description" class="form-control toro-input" rows="3" 
+                          placeholder="Description..." disabled="@isStockMode" />
         </div>
 
         <div class="d-flex justify-content-end gap-2">
@@ -203,7 +263,7 @@
                 }
                 else 
                 {
-                   <span>Save Product</span> 
+                   <span>@(isStockMode ? "Confirm Update" : "Save Product")</span> 
                 }
             </button>
         </div>
@@ -211,18 +271,23 @@
 </ToroModal>
 
 @code {
+    [SupplyParameterFromQuery]
+    public int? TaskId { get; set; }
+
     private bool isModalVisible = false;
     private bool isLoading = true;
     private bool isSaving = false;
+    private bool isStockMode = false;
+    private int OriginalStock = 0;
+
     private string modalTitle = "Add Catalog Item";
     private string ActiveFilter = "All";
     private string ErrorMessage = "";
+    private bool IsLogisticsCoordinator = false;
 
-    // Use the actual Entity class instead of the UI helper class
     private CatalogItem CurrentItem = new();
     private List<CatalogItem> CatalogItems = new();
 
-    // Filtering logic based on real Entity properties (Category/StockQuantity)
     private IEnumerable<CatalogItem> FilteredItems => ActiveFilter switch
     {
         "LowStock" => CatalogItems.Where(i => i.Category == "Hardware" && i.StockQuantity < 5 && i.StockQuantity > 0),
@@ -232,7 +297,23 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await CheckUserRoleAsync();
         await LoadDataAsync();
+    }
+
+    private async Task CheckUserRoleAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var appUser = await UserManager.GetUserAsync(user);
+                if (appUser?.JobRole == "Logistics Coordinator") IsLogisticsCoordinator = true;
+            }
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Error checking user role"); }
     }
 
     private async Task LoadDataAsync()
@@ -241,34 +322,46 @@
         {
             isLoading = true;
             using var context = DbFactory.CreateDbContext();
-            // Fetch real data from DB, ordered by Name
-            CatalogItems = await context.CatalogItems
-                .OrderBy(c => c.Name)
-                .ToListAsync();
+            CatalogItems = await context.CatalogItems.OrderBy(c => c.Name).ToListAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to load catalog items.");
+            Logger.LogError(ex, "Failed to load items.");
             ErrorMessage = "Could not load inventory data.";
         }
-        finally
+        finally { isLoading = false; }
+    }
+
+    private async Task ConfirmStockVerification()
+    {
+        if (!TaskId.HasValue) return;
+        try
         {
-            isLoading = false;
+            using var context = DbFactory.CreateDbContext();
+            var task = await context.ProjectTasks.FindAsync(TaskId.Value);
+            if (task != null)
+            {
+                task.Status = "PendingReview";
+                task.ProofUrl = "Catalog Stock Verified by Coordinator";
+                await context.SaveChangesAsync();
+                Navigation.NavigateTo("/team/kanban");
+            }
         }
+        catch (Exception ex) { Logger.LogError(ex, "Failed to complete task."); }
     }
 
     private void OpenAddModal()
     {
-        // Reset to new instance for creation
         CurrentItem = new CatalogItem { Category = "Hardware", StockQuantity = 1 };
         modalTitle = "Add New Product";
+        isStockMode = false;
         ErrorMessage = "";
         isModalVisible = true;
     }
 
-    private void EditItem(CatalogItem item)
+    private void OpenStockUpdateModal(CatalogItem item)
     {
-        // Clone item to avoid modifying the list directly before save
+        OriginalStock = item.StockQuantity;
         CurrentItem = new CatalogItem 
         { 
             Id = item.Id, 
@@ -278,7 +371,8 @@
             Description = item.Description,
             StockQuantity = item.StockQuantity
         };
-        modalTitle = "Edit Product";
+        modalTitle = "Update Stock Level";
+        isStockMode = true; 
         ErrorMessage = "";
         isModalVisible = true;
     }
@@ -291,34 +385,57 @@
         try
         {
             using var context = DbFactory.CreateDbContext();
+            
+            // LOGIC: Generate Human Readable History String
+            if (isStockMode)
+            {
+                int diff = CurrentItem.StockQuantity - OriginalStock;
+                if (diff != 0)
+                {
+                    string action = diff > 0 ? "Added" : "Removed";
+                    // New Format: [Update: From 15 To 20. Added 5]
+                    string historyTag = $"[Update: From {OriginalStock} To {CurrentItem.StockQuantity}. {action} {Math.Abs(diff)}]";
+                    
+                    // Regex remove old tags of format [Update: ...] so we don't stack them
+                    string cleanDesc = Regex.Replace(CurrentItem.Description ?? "", @"\[Update:.*?\]", "").Trim();
+                    
+                    CurrentItem.Description = $"{historyTag} {cleanDesc}";
+                }
+            }
 
             if (CurrentItem.Id == 0)
             {
-                // Create New
                 context.CatalogItems.Add(CurrentItem);
             }
             else
             {
-                // Update Existing
                 var existing = await context.CatalogItems.FindAsync(CurrentItem.Id);
                 if (existing != null)
                 {
-                    existing.Name = CurrentItem.Name;
-                    existing.Category = CurrentItem.Category;
-                    existing.Cost = CurrentItem.Cost;
-                    existing.Description = CurrentItem.Description;
-                    existing.StockQuantity = CurrentItem.StockQuantity;
+                    if (isStockMode)
+                    {
+                        existing.StockQuantity = CurrentItem.StockQuantity;
+                        existing.Description = CurrentItem.Description;
+                    }
+                    else
+                    {
+                        existing.Name = CurrentItem.Name;
+                        existing.Category = CurrentItem.Category;
+                        existing.Cost = CurrentItem.Cost;
+                        existing.Description = CurrentItem.Description;
+                        existing.StockQuantity = CurrentItem.StockQuantity;
+                    }
                 }
             }
 
             await context.SaveChangesAsync();
-            await LoadDataAsync(); // Refresh list
+            await LoadDataAsync();
             isModalVisible = false;
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error saving catalog item {Name}", CurrentItem.Name);
-            ErrorMessage = "Failed to save product. Please try again.";
+            Logger.LogError(ex, "Error saving item.");
+            ErrorMessage = "Failed to save. Try again.";
         }
         finally
         {
@@ -328,8 +445,7 @@
 
     private async Task DeleteItem(CatalogItem item)
     {
-        // Simple confirmation could be added here
-        try
+         try
         {
             using var context = DbFactory.CreateDbContext();
             var existing = await context.CatalogItems.FindAsync(item.Id);
@@ -337,13 +453,16 @@
             {
                 context.CatalogItems.Remove(existing);
                 await context.SaveChangesAsync();
-                await LoadDataAsync(); // Refresh UI
+                await LoadDataAsync();
             }
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error deleting catalog item {Id}", item.Id);
-            // Optionally set an error message on the main page
-        }
+        catch (Exception ex) { Logger.LogError(ex, "Error deleting."); }
+    }
+
+    private string GetStockHistory(string? description)
+    {
+        if (string.IsNullOrEmpty(description)) return "";
+        var match = Regex.Match(description, @"\[Update:.*?\]");
+        return match.Success ? match.Value.Replace("[", "").Replace("]", "") : "";
     }
 }

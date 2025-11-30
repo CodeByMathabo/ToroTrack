@@ -421,11 +421,9 @@
     private bool isCreateModalVisible = false;
     private bool isProofModalVisible = false;
     private bool isOrderReviewVisible = false;
-
     // --- NEW MODAL STATES ---
     private bool isAssetRegModalVisible = false;
     private bool isDispatchModalVisible = false;
-
     // Holds the ID of the project currently being processed in a stage modal
     private int? ActiveProcessingProjectId = null;
     private ProjectTask? ActiveProcessingTask = null;
@@ -436,7 +434,6 @@
     private AssetOrder? CurrentProjectOrder;
     private string ProofUrlInput = "";
     private string AssetSerialNumbersInput = "";
-
     // Simple DTO for Dispatch
     private class DispatchModel
     {
@@ -445,11 +442,9 @@
         public string Notes { get; set; } = "";
     }
     private DispatchModel DispatchData = new();
-
     // Stage Logic
     private List<(string Title, string Description)> StageOptions = new();
     private bool IsCustomTask = false;
-
     private class ProofOfWork { public string FileName { get; set; } = ""; }
     private ProofOfWork ProofModel = new();
 
@@ -537,7 +532,6 @@
         try
         {
             using var context = DbFactory.CreateDbContext();
-
             // Build query for projects
             var projectQuery = context.Projects
                 .Include(p => p.Client)
@@ -843,7 +837,6 @@
         {
             Logger.LogInformation("User {User} setting Order {OrderId} to {Status}",
                 CurrentUserJobRole, CurrentProjectOrder.Id, newStatus);
-
             using var context = DbFactory.CreateDbContext();
 
             // Re-fetch order with items included to handle stock deduction
@@ -919,11 +912,10 @@
         {
             "FedEx" => "FDX",
             "DHL" => "DHL",
-            "RAM" => "RAM",
-            "Internal" => "INT", // Internal Fleet
+            "CourierGuy" => "Courier Guy",
+            "Takealot" => "Takealot", // Internal Fleet
             _ => "GEN"
         };
-
         string datePart = DateTime.Now.ToString("yyMMdd");
         string uniquePart = Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
 
@@ -938,13 +930,11 @@
 
         // Reset Model
         DispatchData = new DispatchModel();
-
         // Auto-generate immediately so the user doesn't have to type
         DispatchData.CourierName = "FedEx"; // Default
         DispatchData.TrackingNumber = GenerateTrackingNumber(DispatchData.CourierName);
 
         Logger.LogInformation("Opened Dispatch Modal. Auto-generated tracking: {Tracking}", DispatchData.TrackingNumber);
-
         isDispatchModalVisible = true;
     }
 
@@ -955,7 +945,6 @@
         DispatchData.CourierName = newCourier;
 
         // Only auto-regenerate if the field is empty or looks like a system-generated ID
-        // This prevents overwriting a number the user might have manually pasted
         if (string.IsNullOrWhiteSpace(DispatchData.TrackingNumber) || DispatchData.TrackingNumber.Contains("-"))
         {
             DispatchData.TrackingNumber = GenerateTrackingNumber(newCourier);
@@ -975,7 +964,6 @@
         try
         {
             Logger.LogInformation("Registering assets for Project {Id}", ActiveProcessingProjectId);
-
             using var context = DbFactory.CreateDbContext();
             var task = await context.ProjectTasks.FindAsync(ActiveProcessingTask.Id);
 
@@ -1113,19 +1101,19 @@
                             <i class="bi bi-truck"></i> Final Dispatch
                         </button>
                     }
-                    else if (!string.IsNullOrEmpty(GetActionLink(task.Title)))
+                    else if (!string.IsNullOrEmpty(GetActionLink(task)))
                     {
                         // Fallback for Stage 1/3 or others
-                        <a href="@GetActionLink(task.Title)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2"
+                        <a href="@GetActionLink(task)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2"
                            style="font-size: 0.75rem; border-style: dashed;">
                             <span class="bi bi-box-arrow-up-right"></span> Go to Task Page
                         </a>
                     }
                 }
                 // General Links for other roles
-                else if (!string.IsNullOrEmpty(GetActionLink(task.Title)))
+                else if (!string.IsNullOrEmpty(GetActionLink(task)))
                 {
-                    <a href="@GetActionLink(task.Title)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2"
+                    <a href="@GetActionLink(task)" class="btn btn-sm btn-outline-dark w-100 mb-2 mt-2"
                        style="font-size: 0.75rem; border-style: dashed;">
                         <span class="bi bi-box-arrow-up-right"></span> Go to Task Page
                     </a>
@@ -1167,13 +1155,20 @@
     };
 
     // --- SMART LINKING ---
-    private string? GetActionLink(string title)
+    // Why: Changed signature to accept the full task object to allow passing IDs in query params
+    private string? GetActionLink(ProjectTask task)
     {
+        string title = task.Title;
         // 1. Specific Workflow Links for Logistics Coordinator
-        if (title.Contains("Stage 1") || title.Contains("Catalog")) return "/admin/catalog"; // Catalog Verification
-        if (title.Contains("Stage 3") || title.Contains("Stock")) return "/admin/catalog";   // Stock Allocation
+        if (title.Contains("Stage 1") || title.Contains("Catalog"))
+        {
+            // Why: Append taskId to allow "Complete" action on the Catalog page
+            return $"/admin/catalog?taskId={task.Id}";
+        }
 
-        // Removed Stage 4/5 here because they now use buttons
+        if (title.Contains("Stage 3") || title.Contains("Stock"))
+            return $"/admin/catalog?taskId={task.Id}";
+
         // This ensures the button appears instead of a link
 
         // 2. Fallback / General Keywords
