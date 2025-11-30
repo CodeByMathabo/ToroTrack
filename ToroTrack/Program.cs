@@ -128,4 +128,23 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// Automatically Apply Migrations on Startup
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+
+        context.Database.Migrate();
+
+        Console.WriteLine("Database migrated successfully.");
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+    }
+}
+
 app.Run();
