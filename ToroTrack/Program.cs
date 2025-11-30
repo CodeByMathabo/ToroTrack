@@ -31,7 +31,7 @@ builder.Services.AddAuthentication(options =>
 })
     .AddIdentityCookies();
 
-builder.Services.AddAuthorization(); 
+builder.Services.AddAuthorization();
 
 // Database Connection
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -71,7 +71,11 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
+// WHY: Registers the basic sender for standard emails
 builder.Services.AddTransient<IEmailSender, EmailSender>();
+
+// WHY: Registers the typed sender required by Identity UI (Fixes the crash)
+builder.Services.AddTransient<IEmailSender<ApplicationUser>, IdentityEmailSender>();
 
 var app = builder.Build();
 
